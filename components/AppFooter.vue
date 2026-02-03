@@ -6,6 +6,14 @@
  */
 
 const appConfig = useAppConfig()
+const config = useRuntimeConfig()
+const baseURL = computed(() => config.app.baseURL || '/')
+
+// Helper to resolve paths with base URL
+const withBase = (path: string) => {
+  const base = baseURL.value.endsWith('/') ? baseURL.value.slice(0, -1) : baseURL.value
+  return `${base}${path}`
+}
 
 const links = computed(() => [
   ...Object.entries((appConfig as any).socials || {}).map(([key, url]) => ({
@@ -33,7 +41,7 @@ const links = computed(() => [
           target="_blank" 
           rel="noopener"
           class="lithos-footer-link inline-flex items-center gap-1.5 font-medium text-highlighted hover:text-primary transition-colors"
-        ><img src="/logo.svg" alt="Lithos" class="lithos-footer-logo" /><span>Lithos</span></NuxtLink>
+        ><img :src="withBase('/logo.svg')" alt="Lithos" class="lithos-footer-logo" /><span>Lithos</span></NuxtLink>
       </div>
     </template>
 

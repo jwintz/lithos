@@ -9,13 +9,21 @@
  */
 
 const config = useRuntimeConfig()
+const baseURL = computed(() => config.app.baseURL || '/')
+
+// Helper to resolve paths with base URL
+const withBase = (path: string) => {
+  const base = baseURL.value.endsWith('/') ? baseURL.value.slice(0, -1) : baseURL.value
+  return `${base}${path}`
+}
+
 const siteTitle = computed(() => {
   // Priority: siteName (from vault config) > vaultName (folder name) > 'Lithos'
   const name = (config.public.siteName as string) || (config.public.vaultName as string) || 'Lithos'
   return name.charAt(0).toUpperCase() + name.slice(1)
 })
-const logoSrc = ref('/_raw/logo.svg')
-const blinkSrc = ref('/_raw/logo-blink.svg')
+const logoSrc = ref(withBase('/_raw/logo.svg'))
+const blinkSrc = ref(withBase('/_raw/logo-blink.svg'))
 const isFallback = ref(false)
 
 const isBlinking = ref(false)
@@ -25,12 +33,12 @@ let hoverActive = false
 function onLogoError() {
   // If custom blink logo fails, fallback to default logo and disable blinking
   if (isBlinking.value) {
-    logoSrc.value = '/logo.svg'
-    blinkSrc.value = '/logo.svg' // Prevent further blinking requests
+    logoSrc.value = withBase('/logo.svg')
+    blinkSrc.value = withBase('/logo.svg') // Prevent further blinking requests
     isBlinking.value = false // Stop current blink
   } else if (!isFallback.value) {
     // If main logo fails, fallback to default
-    logoSrc.value = '/logo.svg'
+    logoSrc.value = withBase('/logo.svg')
     isFallback.value = true
   }
 }
@@ -112,7 +120,7 @@ onUnmounted(() => {
       />
       <template #fallback>
         <img
-          src="/logo.svg"
+          :src="withBase('/logo.svg')"
           alt="Lithos"
           class="logo-img"
         />
