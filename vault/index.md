@@ -1,7 +1,6 @@
 ---
 title: Lithos
 description: Turn your Obsidian Vault into a beautiful documentation website.
-layout: landing
 navigation: false
 ---
 
@@ -24,7 +23,7 @@ links:
 ---
 ::
 
-::u-page-grid{class="lg:grid-cols-3 max-w-(--ui-container) mx-auto px-4"}
+::u-page-grid{class="lg:grid-cols-3 max-w-(--ui-container) mx-auto px-4 pb-16"}
 
 <!-- Row 1: Native Syntax (2/3) + Graph (1/3) -->
 :::u-page-card

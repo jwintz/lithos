@@ -9,11 +9,10 @@
  */
 
 const config = useRuntimeConfig()
-const baseURL = computed(() => config.app.baseURL || '/')
 
 // Helper to resolve paths with base URL
 const withBase = (path: string) => {
-  const base = baseURL.value.endsWith('/') ? baseURL.value.slice(0, -1) : baseURL.value
+  const base = (config.app.baseURL || '/').replace(/\/$/, '')
   return `${base}${path}`
 }
 
@@ -22,25 +21,40 @@ const siteTitle = computed(() => {
   const name = (config.public.siteName as string) || (config.public.vaultName as string) || 'Lithos'
   return name.charAt(0).toUpperCase() + name.slice(1)
 })
-const logoSrc = ref(withBase('/_raw/logo.svg'))
-const blinkSrc = ref(withBase('/_raw/logo-blink.svg'))
-const isFallback = ref(false)
 
+// Use computed for reactive base URL resolution
+const defaultLogoPath = computed(() => withBase('/logo.svg'))
+const defaultBlinkPath = computed(() => withBase('/logo-blink.svg'))
+const rawLogoPath = computed(() => withBase('/_raw/logo.svg'))
+const rawBlinkPath = computed(() => withBase('/_raw/logo-blink.svg'))
+
+const useRawLogo = ref(true) // Try raw first, fallback to public
+const isFallback = ref(false)
 const isBlinking = ref(false)
 let blinkTimer: ReturnType<typeof setTimeout> | null = null
 let hoverActive = false
 
+const logoSrc = computed(() => {
+  if (isFallback.value) return defaultLogoPath.value
+  return useRawLogo.value ? rawLogoPath.value : defaultLogoPath.value
+})
+
+const blinkSrc = computed(() => {
+  if (isFallback.value) return defaultLogoPath.value // No blink if fallback
+  return useRawLogo.value ? rawBlinkPath.value : defaultBlinkPath.value
+})
+
+const currentSrc = computed(() => isBlinking.value ? blinkSrc.value : logoSrc.value)
+
 function onLogoError() {
-  // If custom blink logo fails, fallback to default logo and disable blinking
-  if (isBlinking.value) {
-    logoSrc.value = withBase('/logo.svg')
-    blinkSrc.value = withBase('/logo.svg') // Prevent further blinking requests
-    isBlinking.value = false // Stop current blink
+  // If raw logo fails, try public logo
+  if (useRawLogo.value) {
+    useRawLogo.value = false
   } else if (!isFallback.value) {
-    // If main logo fails, fallback to default
-    logoSrc.value = withBase('/logo.svg')
+    // If public logo also fails, mark as fallback (disable blinking)
     isFallback.value = true
   }
+  isBlinking.value = false
 }
 
 // Single blink: 150ms
@@ -66,13 +80,13 @@ function doubleBlink() {
 }
 
 function scheduleBlink() {
-  if (!logoSrc.value) return // Don't blink if no logo
+  if (isFallback.value) return // Don't blink if fallback
   
   // Random delay between 0 and 20 seconds
   const delay = Math.random() * 20000
   
   blinkTimer = setTimeout(() => {
-    if (!hoverActive) {
+    if (!hoverActive && !isFallback.value) {
       // 30% chance of double blink, 70% single blink
       if (Math.random() < 0.3) {
         doubleBlink()
@@ -87,7 +101,9 @@ function scheduleBlink() {
 
 function onMouseEnter() {
   hoverActive = true
-  isBlinking.value = true
+  if (!isFallback.value) {
+    isBlinking.value = true
+  }
 }
 
 function onMouseLeave() {
@@ -113,14 +129,14 @@ onUnmounted(() => {
   >
     <ClientOnly>
       <img
-        :src="isBlinking ? blinkSrc : logoSrc"
+        :src="currentSrc"
         @error="onLogoError"
         alt="Lithos"
         class="logo-img"
       />
       <template #fallback>
         <img
-          :src="withBase('/logo.svg')"
+          :src="defaultLogoPath"
           alt="Lithos"
           class="logo-img"
         />
