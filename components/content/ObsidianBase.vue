@@ -1033,9 +1033,9 @@ details[open] > .base-header .base-chevron {
 
 .card-cover img { width: 100%; height: 100%; object-fit: var(--image-fit, cover); }
 
-/* Noir filter effect for card images - matches ProseImg treatment */
+/* Noir filter effect for card images - CSS-only, no SVG dependency */
 .base-card-image {
-  filter: url('#lithos-duotone-light') contrast(1.15) brightness(1);
+  filter: grayscale(100%) sepia(20%) hue-rotate(200deg) saturate(150%) contrast(1.15) brightness(1);
   transition: all 0.5s ease-in-out;
   will-change: transform, filter;
 }

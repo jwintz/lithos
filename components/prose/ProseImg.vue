@@ -87,9 +87,9 @@ function toggleNoir() {
 <style scoped>
 /* Reuse styles consistent with NoirImage */
 
-/* 1. Base Filter */
+/* 1. Base Filter - CSS-only, no SVG dependency */
 .noir-filter {
-  filter: url('#lithos-duotone-light') contrast(1.15) brightness(1);
+  filter: grayscale(100%) sepia(20%) hue-rotate(200deg) saturate(150%) contrast(1.15) brightness(1);
   will-change: transform, filter;
 }
 
