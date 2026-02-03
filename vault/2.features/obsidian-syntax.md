@@ -43,12 +43,12 @@ You can embed notes, images, or even blocks of text directly into another note u
 
 **Syntax:**
 ```md
-![[Feature Image.png]]
+![[https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800]]
 ```
 
 **Result:**
 
-![[Feature Image.png]]
+![Writing workspace with laptop and coffee](https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800)
 
 This allows you to compose complex documents from smaller, atomic notes, adhering to the principle of reusability and modularity in knowledge management.
 
