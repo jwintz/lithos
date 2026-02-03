@@ -43,7 +43,7 @@ public/graph.json
 .#*
 
 # User-specific vault symlink
-content
+/content
 
 # Agent related files
 AGENTS.md

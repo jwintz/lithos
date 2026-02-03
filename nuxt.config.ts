@@ -293,6 +293,15 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2024-11-01',
 
+  // MDC configuration for component mapping
+  mdc: {
+    components: {
+      map: {
+        'noir-image': 'NoirImage'
+      }
+    }
+  },
+
   // Fallback for landing page if not present
   routeRules: {
     // Block access to ignored files in the raw path
