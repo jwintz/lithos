@@ -122,7 +122,8 @@ export default defineNuxtConfig({
         { name: 'viewport', content: 'width=device-width, initial-scale=1' }
       ],
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
+        // Favicon path is relative - Nuxt will prepend baseURL
+        { rel: 'icon', type: 'image/svg+xml', href: (process.env.NUXT_APP_BASE_URL || '/') + 'favicon.svg' }
       ]
     }
   },
@@ -198,7 +199,7 @@ export default defineNuxtConfig({
   components: {
     dirs: [
       { path: '~/components', pathPrefix: false },
-      { path: '~/components/content', pathPrefix: false },
+      { path: '~/components/content', pathPrefix: false, global: true },
       { path: '~/components/prose', pathPrefix: false }
     ]
   },
