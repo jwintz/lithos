@@ -1,0 +1,541 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/* Global Noir Effects */
+.scanlines {
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 0, 0.03) 50%);
+  background-size: 100% 4px;
+}
+.scanlines-dark {
+  background: linear-gradient(to bottom, transparent 50%, rgba(255, 255, 255, 0.015) 50%);
+}
+.accent-tint {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--color-violet-500) 15%, transparent) 0%,
+    transparent 50%,
+    color-mix(in oklch, var(--color-violet-500) 10%, transparent) 100%
+  );
+}
+.accent-tint-dark {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklch, var(--color-violet-600) 20%, transparent) 0%,
+    transparent 40%,
+    color-mix(in oklch, var(--color-violet-700) 15%, transparent) 100%
+  );
+}
+.vignette {
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.4) 100%);
+}
+
+/* Theme tokens via @theme directive */
+@theme static {
+  --font-sans: "SF Pro", "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-serif: "New York", "Times New Roman", Times, serif;
+  --font-mono: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  
+  --color-violet-50: #f5f3ff;
+  --color-violet-100: #ede9fe;
+  --color-violet-200: #ddd6fe;
+  --color-violet-300: #c4b5fd;
+  --color-violet-400: #A58AF9;
+  --color-violet-500: #8b5cf6;
+  --color-violet-600: #7c3aed;
+  --color-violet-700: #6d28d9;
+  --color-violet-800: #5b21b6;
+  --color-violet-900: #4c1d95;
+  --color-violet-950: #2e1065;
+}
+
+:root {
+  /* Graph colors - Obsidian-like styling */
+  --lithos-graph-bg: transparent;
+  --lithos-graph-node-default: #a78bfa;
+  --lithos-graph-node-current: #30d158;
+  --lithos-graph-node-hover: #c4b5fd; /* violet-300 - distinctive without being harsh */
+  --lithos-graph-tag: #34d399;
+  --lithos-graph-edge: rgba(136, 136, 136, 0.4);
+  --lithos-graph-edge-hover: rgba(167, 139, 250, 0.8);
+  --lithos-graph-text: #18181b;  /* zinc-900 for light mode */
+  /* General theme tokens */
+  --lithos-border-subtle: var(--ui-border-muted);
+  --lithos-bg-muted: var(--ui-bg-muted);
+  --lithos-text-tertiary: var(--ui-text-muted);
+  --lithos-text-secondary: var(--ui-text-dimmed);
+  --lithos-text-primary: var(--ui-text-highlighted);
+  --lithos-accent-primary: var(--color-violet-400);
+}
+
+.dark {
+  --lithos-graph-bg: transparent;
+  --lithos-graph-node-current: #30d158;
+  --lithos-graph-node-hover: #a78bfa; /* violet-400 - accent color, bright and distinctive */
+  --lithos-graph-tag: #34d399;
+  --lithos-graph-text: #e5e5e5;  /* Light gray for dark mode */
+  --lithos-graph-edge: rgba(136, 136, 136, 0.4);
+}
+
+/* ============================================
+   FIX 1: pb-24 Bottom Padding
+   Target the specific UPageBody element
+   ============================================ */
+.pb-24.mt-8.space-y-12 {
+  padding-bottom: 48px !important;
+}
+
+/* ============================================
+   FIX 2: Font Scaling - Override spacing vars
+   Tailwind 4 uses calc(var(--spacing) * N)
+   We override the specific classes used in layout
+   ============================================ */
+
+/* Only target the main page container's grid gap */
+.flex.flex-col.lg\:grid.lg\:grid-cols-10.lg\:gap-4 {
+  gap: 16px !important;
+}
+
+/* ============================================
+   FIX 3: Tablet Layout (768-1023px)
+   Show left sidebar, hide right sidebar
+   Center spans remaining 8 cols (inner grid spans full 10)
+   ============================================ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Show left sidebar on tablet */
+  [data-slot="left"].hidden.lg\:block {
+    display: block !important;
+  }
+  
+  /* Enable grid on tablet for the page layout only */
+  .flex.flex-col.lg\:grid.lg\:grid-cols-10.lg\:gap-4 {
+    display: grid !important;
+    grid-template-columns: repeat(10, 1fr) !important;
+    gap: 16px !important;
+  }
+  
+  /* Left sidebar takes 2 columns on tablet */
+  [data-slot="left"].lg\:col-span-2 {
+    grid-column: span 2 !important;
+  }
+  
+  /* Center content takes remaining 8 columns */
+  [data-slot="center"].lg\:col-span-7,
+  [data-slot="center"].lg\:col-span-8 {
+    grid-column: span 8 !important;
+  }
+  
+  /* Hide right sidebar on tablet */
+  [data-slot="right"].lg\:col-span-3 {
+    display: none !important;
+  }
+  
+  /* Inner grid (inside center): content spans all 10 since right is hidden */
+  [data-slot="center"] .lg\:grid.lg\:grid-cols-10 {
+    display: grid !important;
+    grid-template-columns: repeat(10, 1fr) !important;
+  }
+  
+  [data-slot="center"] .lg\:col-span-7 {
+    grid-column: span 10 !important;
+  }
+}
+
+/* ============================================
+   FIX 4: Consistent outer margins (16px all breakpoints)
+   ============================================ */
+.max-w-\(--ui-container\) {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+/* ============================================
+   FIX 5: Mobile Navigation Slideover - Consistent margins
+   The slideover uses px-4 sm:px-6, but we want 16px always
+   to match the main content margins.
+   ============================================ */
+
+/* Target the slideover dialog's inner content divs */
+[role="dialog"].fixed.inset-0 > div {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+/* Also ensure the second div (scrollable content) has consistent padding */
+[role="dialog"].fixed.inset-0 > div:last-child {
+  padding: 16px !important;
+}
+
+/* ============================================
+   Command Palette Match Highlight
+   Ensure mark tags inside the palette don't inherit
+   unwanted spacing or background from browser defaults.
+   ============================================ */
+[data-slot="itemLabel"] mark,
+[data-slot="itemLabelBase"] mark,
+[data-slot="itemLabelSuffix"] mark {
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* ============================================
+   Sidebar Navigation
+   ============================================ */
+[data-slot="left"] [data-slot="linkTitle"] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-slot="left"],
+[data-slot="right"] {
+  /* overflow-x: hidden; -- Removed to fix indentation guide clipping */
+  min-width: 0;
+}
+
+/* ============================================
+   Content Area Overflow Constraint
+   Prevent inline HTML with white-space: nowrap from overflowing
+   Only target the article content, not the slots themselves
+   ============================================ */
+[data-slot="center"] article > * {
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+/* Full-width banners with nowrap should use overflow: clip on themselves */
+[data-slot="center"] article div[style*="nowrap"] {
+  overflow: clip;
+}
+
+/* ============================================
+   Right Sidebar Fixes
+   ============================================ */
+.right-aside [data-slot="topFooter"] {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  /* 
+   * Sidebar Spacing Symmetry Fix:
+   * - Left sidebar has pe-6.5 (~26px) right padding from NuxtUI defaults
+   * - Inner grid has gap-4 (16px) between content and right sidebar
+   * - To match: right sidebar needs ps-6.5 (~26px) left padding
+   * - We keep the pe-6.5 on right sidebar for edge alignment
+   * - Reset margin overrides, rely on padding
+   */
+  .right-aside {
+    /* Match left sidebar's pe-6.5 with equivalent left padding */
+    padding-left: 26px !important;
+    /* Keep right edge aligned - remove right padding to align with viewport edge */
+    padding-right: 0 !important;
+    /* Reset margins to let grid control layout */
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .right-aside [data-slot="topBody"],
+  .right-aside [data-slot="topHeader"] {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* Remove negative margins from right sidebar slots */
+  [data-slot="right"].lg\:col-span-3 [data-slot="topHeader"],
+  [data-slot="right"].lg\:col-span-3 [data-slot="topBody"],
+  [data-slot="right"].lg\:col-span-3 [data-slot="topFooter"] {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+}
+
+/* ============================================
+   Content Navigation Active Indicator
+   ============================================ */
+/* Only apply to anchor tags (leaves), ignoring buttons/folders to prevent false positives */
+a[data-slot="link"].text-primary::after,
+a[data-slot="link"][class*="text-primary"]::after {
+  left: -6px !important;
+  inset-inline-start: -6px !important;
+}
+
+
+/* TOC smooth scrolling */
+.right-aside nav {
+  scroll-behavior: smooth;
+}
+
+
+/* ============================================
+   Heading Scroll Margins for Scroll Spy
+   Ensures headings trigger IntersectionObserver correctly
+   accounting for fixed header height
+   ============================================ */
+article h2[id],
+article h3[id],
+article h4[id],
+article h5[id],
+article h6[id] {
+  scroll-margin-top: 6rem;
+}
+
+/* ============================================
+   Right Sidebar Containment
+   Ensure TOC doesn't overflow the graph area
+   ============================================ */
+.right-aside {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 64px);
+  /* overflow: hidden; Removed to allow scrolling */
+}
+
+/* Ensure vertical-only scrolling for the TOC container */
+.right-aside [data-slot="topBody"] {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden; /* Prevent horizontal scroll */
+  padding-right: 4px; /* Space for scrollbar */
+}
+/* Custom scrollbar styling for sidebar */
+.right-aside [data-slot="topBody"]::-webkit-scrollbar {
+  width: 4px;
+}
+.right-aside [data-slot="topBody"]::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-300);
+  border-radius: 4px;
+}
+.dark .right-aside [data-slot="topBody"]::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-700);
+}
+
+/* Ensure the scrollable container we added in the vue component also respects flex constraints */
+.right-aside .flex-1.overflow-y-auto {
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+/* ============================================
+   Right Sidebar (TOC) Nesting Styles
+   Indent nested items in the standard UContentToc
+   ============================================ */
+.right-aside nav ul ul {
+  padding-left: 1rem;
+}
+.right-aside nav ul ul ul {
+  padding-left: 1rem;
+}
+
+/* ============================================
+   Right Sidebar (TOC) Indicator Polyfill
+   Fixes issue where 'h-(--indicator-size)' classes fail to apply 
+   in current Tailwind setup. Forces native behavior.
+   ============================================ */
+.right-aside .absolute.transition-\[translate\,height\].w-px,
+.right-aside .absolute.bg-primary.w-px.rounded-full {
+  height: var(--indicator-size) !important;
+  /* Removed transform polyfill as it causes double-translation 
+     (Tailwind Applys 'translate' property separately) */
+}
+
+/* ============================================
+   Left Sidebar Multiple Highlights Fix
+   We previously hid the native ::after. 
+   Now we allow the default behavior.
+   If "About" is a top-level item and shouldn't have an indicator, Docus won't add one.
+   ============================================ */
+   
+/* Checkboxes: Use default NuxtUI/Reka UI styling */
+
+/* Checkboxes: Use default NuxtUI/Reka UI styling */
+
+/* ============================================
+   Hide menu toggle on tablet (sidebar already visible)
+   The hamburger menu is the last button in header[data-slot="right"]
+   ============================================ */
+@media (min-width: 768px) {
+  /* Target the hamburger menu button (contains SVG with 3 lines) */
+  header [data-slot="right"] > button:last-child {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   FIX: Prevent embed flash during hydration
+   Smooth fade-in masks any SSR/client toggle
+   ============================================ */
+.note-embed .embed-content,
+.obsidian-base > :not(summary) {
+  animation: embedFadeIn 0.15s ease-in;
+}
+
+@keyframes embedFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ============================================
+   Remove border/hr between Page Header and Content
+   UPageHeader has a bottom border in its theme
+   ============================================ */
+/* Target UPageHeader root element */
+[data-slot="root"]:has([data-slot="title"]) {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+}
+
+/* Also target by common page header patterns */
+.border-b.border-default:has(h1) {
+  border-bottom: none !important;
+}
+
+/* Direct targeting of page header container */
+[data-slot="container"]:has([data-slot="title"]) {
+  border-bottom: none !important;
+}
+
+/* Remove extra margin before Properties Panel */
+article > .properties-panel:first-child {
+  margin-top: 0;
+}
+
+/* ============================================
+   Landing Page Image Aesthetic
+   
+   The NoirImage.vue component handles all noir effects:
+   - SVG duotone filter (light/dark theme-aware)
+   - Scanline overlay
+   - Accent color tint
+   - Vignette effect
+   - 3D perspective transform
+   - Hover reveal animation
+   
+   This section only provides the .landing-page class scope
+   for the plugin to apply on the landing page route.
+   ============================================ */
+
+.landing-page {
+  /* Marker class applied by plugins/landing-effects.client.ts */
+  contain: layout;
+}
+
+
+
+
+
+
+/* ============================================
+   Noir Image Effect (Avatar)
+   Replicates the landing page effect for standard images
+   Usage: <img class="noir-image" ...>
+   ============================================ */
+.noir-image {
+  filter: grayscale(100%) contrast(120%);
+  transform: perspective(1000px) rotateY(15deg) rotateX(10deg);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.4s ease;
+  box-shadow: -10px 10px 0 var(--color-violet-400); /* Use theme color */
+  border: 2px solid var(--color-violet-400);
+}
+
+.noir-image:hover {
+  transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
+  filter: grayscale(0%) contrast(100%);
+  box-shadow: 0 0 0 var(--color-violet-400);
+}
+
+/* ============================================
+   BASE Pill for Bases Navigation Items
+   Shows a right-aligned pill next to Bases folder items
+   
+   The pill is injected as a <span class="base-pill"> by the
+   filter-navigation.ts plugin to avoid conflicts with
+   NuxtUI's pseudo-element usage (::before for hover bg,
+   ::after for active indicator bar).
+   ============================================ */
+
+/* Ensure parent containers allow the pill to be visible */
+[data-slot="left"] li:has(.lithos-base-item),
+[data-slot="left"] li:has(a[href^="/bases/"]:not([href="/bases"])) {
+  overflow: visible !important;
+}
+
+/* The BASE pill - real DOM element injected by JS */
+.base-pill {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ui-radius);
+  background: var(--ui-bg-accented);
+  color: var(--ui-text-muted);
+  border: 1px solid var(--ui-border);
+  pointer-events: none;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* ============================================
+   Sidebar Collapse/Expand Controls
+   Injected at top of left sidebar by filter-navigation.ts
+   ============================================ */
+.sidebar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 0 0.75rem 0;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--ui-border) 40%, transparent);
+}
+
+.sidebar-controls .sidebar-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ui-text-muted);
+}
+
+.sidebar-controls .sidebar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sidebar-controls .control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: transparent;
+  color: var(--ui-text-muted);
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.sidebar-controls .control-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+  stroke-width: 2;
+}
+
+.sidebar-controls .control-btn:hover {
+  color: var(--ui-text-highlighted);
+}
+
+.sidebar-controls .control-btn:active {
+  transform: scale(0.95);
+}

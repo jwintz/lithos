@@ -1,0 +1,39 @@
+image: node:20
+
+stages:
+  - build
+  - deploy
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .nuxt/
+
+variables:
+  # Set this to your project name if not using a custom domain
+  NUXT_APP_BASE_URL: /${CI_PROJECT_NAME}/
+  NUXT_PUBLIC_SITE_URL: ${CI_PAGES_URL}
+  # Increase memory for large vaults
+  NODE_OPTIONS: "--max-old-space-size=8192"
+  GIT_SUBMODULE_STRATEGY: recursive
+
+build:
+  stage: build
+  script:
+    - npm ci
+    - npm run generate -- --vault vault
+  artifacts:
+    paths:
+      - .output/public
+    expire_in: 1 week
+
+pages:
+  stage: deploy
+  script:
+    - mv .output/public public
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
