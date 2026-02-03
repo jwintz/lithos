@@ -28,11 +28,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Clean build cache
+        run: rm -rf .nuxt .output
+
       - name: Generate static site
         run: npm run generate -- --vault vault
         env:
           NUXT_APP_BASE_URL: /lithos/
           NODE_OPTIONS: "--max-old-space-size=8192"
+
+      - name: Debug - Check NoirImage rendering
+        run: grep -o '<NoirImage\|noir-card-wrapper' .output/public/index.html | head -5 || echo "Pattern not found"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -49,4 +55,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-# Trigger rebuild
