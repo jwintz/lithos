@@ -37,7 +37,7 @@ const wrapperHeight = computed(() => props.height || '240px')
     <img
       :src="imageSrc"
       :alt="alt || ''"
-      class="noir-image"
+      class="noir-image filter-violet-light"
     />
     <div class="scanlines" :class="{ 'scanlines-dark': isDark }"></div>
     <div class="accent-tint" :class="{ 'accent-tint-dark': isDark }"></div>
@@ -66,8 +66,11 @@ const wrapperHeight = computed(() => props.height || '240px')
   transform: scale(1.1) rotateX(4deg) rotateY(2deg);
   transform-origin: center center;
   transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.4s ease;
-  /* CSS-only duotone effect - no SVG filter dependency */
-  filter: grayscale(100%) sepia(20%) hue-rotate(200deg) saturate(150%) contrast(1.15) brightness(1);
+}
+
+/* SVG Filter - always use light variant for consistency */
+.filter-violet-light {
+  filter: url('#lithos-duotone-light') contrast(1.15) brightness(1);
 }
 
 /* --- SCANLINE OVERLAY --- */
