@@ -113,6 +113,8 @@ export default defineNuxtConfig({
 
   // Modern aesthetic defaults via Nuxt UI
   app: {
+    // Support subpath deployment (e.g., GitHub Pages project sites)
+    baseURL: process.env.NUXT_APP_BASE_URL || '/',
     head: {
       title: siteName,
       meta: [

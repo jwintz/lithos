@@ -31,8 +31,7 @@ jobs:
       - name: Generate static site
         run: npm run generate -- --vault vault
         env:
-          # Set this to your project name if not using a custom domain
-          # NUXT_APP_BASE_URL: /${{ github.event.repository.name }}/
+          NUXT_APP_BASE_URL: /lithos/
           NODE_OPTIONS: "--max-old-space-size=8192"
 
       - name: Upload artifact
