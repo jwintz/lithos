@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { withBase } from 'ufo'
+
 /**
  * ObsidianBase Component
  *
@@ -577,17 +579,27 @@ const { data: notes, status, refresh } = await useAsyncData(
   { watch: [activeView, userSort] }
 )
 
-// Get image property for cards
+// Get image property for cards (with baseURL support)
 const getCardImage = (doc: any): string | null => {
   const currentView = baseConfig.value.views[activeView.value]
 
+  let imagePath: string | null = null
+  
   // If no image config, use doc.cover or meta.cover
   if (!currentView?.image) {
-    return doc.cover || doc.meta?.cover || doc.image || doc.meta?.image || null
+    imagePath = doc.cover || doc.meta?.cover || doc.image || doc.meta?.image || null
+  } else {
+    // Parse image property (e.g., "note.cover", "file.file")
+    imagePath = getProperty(doc, currentView.image) || null
   }
-
-  // Parse image property (e.g., "note.cover", "file.file")
-  return getProperty(doc, currentView.image) || null
+  
+  // Apply baseURL for absolute paths (same as ProseImg.vue)
+  if (imagePath?.startsWith('/') && !imagePath.startsWith('//')) {
+    const baseURL = useRuntimeConfig().app.baseURL
+    return withBase(imagePath, baseURL)
+  }
+  
+  return imagePath
 }
 
 // Keys to exclude from table columns

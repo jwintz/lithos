@@ -235,6 +235,15 @@ export default defineNuxtModule({
         }
       }
 
+      // Filter edges to only include those where both source and target nodes exist
+      const nodeIds = new Set(graph.nodes.map(n => n.id))
+      const validEdges = graph.edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target))
+      const invalidEdgeCount = graph.edges.length - validEdges.length
+      if (invalidEdgeCount > 0) {
+        console.log(`[obsidian-graph] Filtered out ${invalidEdgeCount} edges with missing nodes`)
+      }
+      graph.edges = validEdges
+
       // Write graph to public folder
       const outputPath = join(nuxt.options.rootDir, options.outputPath)
       await mkdir(dirname(outputPath), { recursive: true })
