@@ -268,17 +268,23 @@ try {
         const outputInsideVault = finalOutput.startsWith(resolvedVault + '/')
         
         if (outputInsideVault) {
-          // Manual copy of top-level items, skipping the output directory
+          // Manual copy of top-level items, skipping non-vault directories
           const entries = readdirSync(resolvedVault)
+          // Directories to skip: hidden, node_modules, build outputs, and cloned repos
+          const skipDirs = ['node_modules', 'lithos', 'public', '.output', '.nuxt', '.data']
           for (const entry of entries) {
-            // Skip hidden files and node_modules
-            if (entry.startsWith('.') || entry === 'node_modules') {
+            // Skip hidden files and known non-content directories
+            if (entry.startsWith('.') || skipDirs.includes(entry)) {
               continue
             }
             const srcPath = resolve(resolvedVault, entry)
             const destPath = resolve(rawDir, entry)
             // Skip if this entry is or contains the output directory
             if (srcPath === finalOutput || finalOutput.startsWith(srcPath + '/')) {
+              continue
+            }
+            // Skip directories containing node_modules (cloned repos)
+            if (lstatSync(srcPath).isDirectory() && checkExists(resolve(srcPath, 'node_modules'))) {
               continue
             }
             cpSync(srcPath, destPath, { recursive: true })
