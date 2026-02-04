@@ -138,6 +138,15 @@
   [data-slot="center"] .lg\:col-span-7 {
     grid-column: span 10 !important;
   }
+  
+  /* Sticky left sidebar on tablet - should not scroll with main content */
+  [data-slot="left"] {
+    position: sticky !important;
+    top: 64px !important;
+    align-self: flex-start !important;
+    max-height: calc(100vh - 64px) !important;
+    overflow-y: auto !important;
+  }
 }
 
 /* ============================================
