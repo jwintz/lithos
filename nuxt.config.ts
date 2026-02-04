@@ -139,6 +139,10 @@ export default defineNuxtConfig({
       '**/.trash/**',
       '**/node_modules/**',
       '**/.data/**',
+      // CI cloned repos - prevent lithos docs from being included when cloned into vault
+      'lithos',
+      'lithos/**',
+      '**/lithos/**',
       // Explicit strict ignores
       '**/AGENTS.md',
       '**/PLAN.md',
