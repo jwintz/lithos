@@ -78,8 +78,8 @@ export default defineNuxtModule({
                 for (const entry of entries) {
                     const fullPath = join(dir, entry.name)
                     
-                    // Skip common ignored directories
-                    if (['.git', '.obsidian', '.trash', 'node_modules', '.nuxt', '.output', '.data'].includes(entry.name)) {
+                    // Skip common ignored directories and cloned repos
+                    if (['.git', '.obsidian', '.trash', 'node_modules', '.nuxt', '.output', '.data', 'lithos', 'public'].includes(entry.name)) {
                         continue
                     }
 

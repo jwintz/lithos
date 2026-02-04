@@ -164,7 +164,22 @@ export default defineNuxtConfig({
     sources: {
       content: {
         driver: 'fs',
-        base: resolve(__dirname, 'content')
+        base: resolve(__dirname, 'content'),
+        // Exclude cloned lithos repo and other non-content directories
+        exclude: [
+          'lithos/**',
+          '**/lithos/**',
+          '.git/**',
+          '**/.git/**',
+          '.obsidian/**',
+          '**/.obsidian/**',
+          'node_modules/**',
+          '**/node_modules/**',
+          'public/**',
+          '.output/**',
+          '.nuxt/**',
+          '.data/**'
+        ]
       },
       assets: {
         driver: 'fs',
@@ -323,16 +338,20 @@ export default defineNuxtConfig({
 
   // Hooks for static asset mounting
   hooks: {
-    // For static builds: mount raw vault files at /_raw so Monaco can fetch them
+    // For dev mode only: mount raw vault files at /_raw so Monaco can fetch them
+    // For SSG, we manually copy files with filters in bin/lithos.mjs to exclude lithos/, node_modules/, etc.
     'nitro:config' (config) {
-      if (absoluteVaultPath && existsSync(absoluteVaultPath)) {
+      const isSSG = process.argv.includes('generate') || process.env.NUXT_MODE === 'generate'
+      if (!isSSG && absoluteVaultPath && existsSync(absoluteVaultPath)) {
         config.publicAssets = config.publicAssets || []
         config.publicAssets.push({
           dir: absoluteVaultPath,
           maxAge: 3600,
           baseURL: '/_raw'
         })
-        console.log(`[Lithos] Mounted vault for raw access at /_raw`)
+        console.log(`[Lithos] Mounted vault for raw access at /_raw (dev mode)`)
+      } else if (isSSG) {
+        console.log(`[Lithos] SSG mode - vault files will be copied by CLI with filters`)
       }
     }
   }

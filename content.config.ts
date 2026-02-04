@@ -102,6 +102,12 @@ const excludePatterns = [
   '.trash/**',       // Obsidian trash
   '.claude/**',      // Claude config
   'node_modules/**', // Dependencies
+  'lithos/**',       // Cloned lithos repo in CI
+  '**/lithos/**',    // Nested lithos paths
+  'public/**',       // Build output
+  '.output/**',      // Nuxt output
+  '.nuxt/**',        // Nuxt build
+  '.data/**',        // Nuxt data
   '**/.DS_Store',    // macOS files
   '**/*.canvas',     // Obsidian canvas files (unsupported)
   '**/AGENTS.md',
