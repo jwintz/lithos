@@ -268,7 +268,14 @@ try {
           filter: (src) => {
             // Skip hidden files and common non-content
             const name = src.split('/').pop()
-            return !name.startsWith('.') && name !== 'node_modules'
+            if (name.startsWith('.') || name === 'node_modules') {
+              return false
+            }
+            // Skip the output directory to prevent recursive copy
+            if (src === finalOutput || src.startsWith(finalOutput + '/')) {
+              return false
+            }
+            return true
           }
         })
         console.log('[Lithos] Vault copied successfully')
@@ -276,5 +283,6 @@ try {
     }
   }
 } catch (e) {
+  console.error('[Lithos] Error:', e.message || e)
   process.exit(e.status || 1)
 }
