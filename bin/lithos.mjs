@@ -263,21 +263,36 @@ try {
       if (checkExists(resolvedVault)) {
         console.log(`[Lithos] Copying vault to ${rawDir} for raw file access...`)
         mkdirSync(rawDir, { recursive: true })
-        cpSync(resolvedVault, rawDir, { 
-          recursive: true,
-          filter: (src) => {
-            // Skip hidden files and common non-content
-            const name = src.split('/').pop()
-            if (name.startsWith('.') || name === 'node_modules') {
-              return false
+        
+        // Check if output is inside vault (would cause recursive copy)
+        const outputInsideVault = finalOutput.startsWith(resolvedVault + '/')
+        
+        if (outputInsideVault) {
+          // Manual copy of top-level items, skipping the output directory
+          const entries = readdirSync(resolvedVault)
+          for (const entry of entries) {
+            // Skip hidden files and node_modules
+            if (entry.startsWith('.') || entry === 'node_modules') {
+              continue
             }
-            // Skip the output directory to prevent recursive copy
-            if (src === finalOutput || src.startsWith(finalOutput + '/')) {
-              return false
+            const srcPath = resolve(resolvedVault, entry)
+            const destPath = resolve(rawDir, entry)
+            // Skip if this entry is or contains the output directory
+            if (srcPath === finalOutput || finalOutput.startsWith(srcPath + '/')) {
+              continue
             }
-            return true
+            cpSync(srcPath, destPath, { recursive: true })
           }
-        })
+        } else {
+          // Safe to copy directly
+          cpSync(resolvedVault, rawDir, { 
+            recursive: true,
+            filter: (src) => {
+              const name = src.split('/').pop()
+              return !name.startsWith('.') && name !== 'node_modules'
+            }
+          })
+        }
         console.log('[Lithos] Vault copied successfully')
       }
     }
