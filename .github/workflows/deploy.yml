@@ -35,6 +35,7 @@ jobs:
         run: npm run generate -- --vault vault
         env:
           NUXT_APP_BASE_URL: /lithos/
+          NUXT_PUBLIC_SITE_URL: https://jwintz.github.io/lithos
           NODE_OPTIONS: "--max-old-space-size=8192"
 
       - name: Debug - Check NoirImage rendering
