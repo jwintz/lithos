@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { withBase } from 'ufo'
+
 /**
  * AppHeaderLogo - Custom header logo for Lithos
  *
@@ -9,12 +11,7 @@
  */
 
 const config = useRuntimeConfig()
-
-// Helper to resolve paths with base URL
-const withBase = (path: string) => {
-  const base = (config.app.baseURL || '/').replace(/\/$/, '')
-  return `${base}${path}`
-}
+const baseURL = config.app.baseURL || '/'
 
 const siteTitle = computed(() => {
   // Priority: siteName (from vault config) > vaultName (folder name) > 'Lithos'
@@ -23,10 +20,10 @@ const siteTitle = computed(() => {
 })
 
 // Use computed for reactive base URL resolution
-const defaultLogoPath = computed(() => withBase('/logo.svg'))
-const defaultBlinkPath = computed(() => withBase('/logo-blink.svg'))
-const rawLogoPath = computed(() => withBase('/_raw/logo.svg'))
-const rawBlinkPath = computed(() => withBase('/_raw/logo-blink.svg'))
+const defaultLogoPath = computed(() => withBase('/logo.svg', baseURL))
+const defaultBlinkPath = computed(() => withBase('/logo-blink.svg', baseURL))
+const rawLogoPath = computed(() => withBase('/_raw/logo.svg', baseURL))
+const rawBlinkPath = computed(() => withBase('/_raw/logo-blink.svg', baseURL))
 
 const useRawLogo = ref(true) // Try raw first, fallback to public
 const isFallback = ref(false)

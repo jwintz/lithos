@@ -296,3 +296,67 @@ a.group[href]:hover::before {
   display: flex;
   justify-content: center;
 }
+
+/* ============================================
+   Markdown Task List Checkboxes
+   Styles for - [ ] and - [x] syntax
+   ============================================ */
+
+/* Task list items - the li elements containing checkboxes */
+article ul li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* The checkbox input itself */
+article input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1rem;
+  height: 1rem;
+  min-width: 1rem;
+  margin-top: 0.25rem;
+  border: 1.5px solid var(--ui-border);
+  border-radius: 0.25rem;
+  background: var(--ui-bg);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+article input[type="checkbox"]:hover {
+  border-color: var(--ui-primary);
+  background: var(--ui-bg-muted);
+}
+
+article input[type="checkbox"]:checked {
+  background: var(--color-violet-500);
+  border-color: var(--color-violet-500);
+}
+
+article input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 4px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Disabled state for readonly checkboxes */
+article input[type="checkbox"][disabled] {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Checked + disabled = completed task styling */
+article input[type="checkbox"]:checked[disabled] + * {
+  color: var(--ui-text-muted);
+  text-decoration: line-through;
+}

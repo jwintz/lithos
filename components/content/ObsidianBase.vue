@@ -395,9 +395,20 @@ function getProperty(doc: any, path: string): any {
       case 'extension':
         return doc.extension || doc.meta?.extension || 'md'
       case 'mtime':
-        return doc._mtime || doc.mtime || doc.meta?.mtime || doc.updatedAt || doc.meta?.date || doc.date
+        // Priority: frontmatter fields > internal Nuxt Content fields
+        // Common frontmatter names: updated, modified, date, mtime
+        return doc.updated || doc.meta?.updated ||
+               doc.modified || doc.meta?.modified ||
+               doc._mtime || doc.mtime || doc.meta?.mtime ||
+               doc.updatedAt ||
+               doc.date || doc.meta?.date
       case 'ctime':
-        return doc._ctime || doc.ctime || doc.meta?.ctime || doc.createdAt
+        // Priority: frontmatter fields > internal Nuxt Content fields
+        // Common frontmatter names: created, date, ctime
+        return doc.created || doc.meta?.created ||
+               doc._ctime || doc.ctime || doc.meta?.ctime ||
+               doc.createdAt ||
+               doc.date || doc.meta?.date
       case 'tags':
         return doc.tags || doc.meta?.tags || []
       case 'icon':
@@ -444,13 +455,13 @@ function getProperty(doc: any, path: string): any {
   return undefined
 }
 
-// Fetch and filter notes
-const { data: notes, status, refresh } = await useAsyncData(
+// Fetch and filter notes (without sorting - sorting is done in computed for reactivity on static sites)
+const { data: rawNotes, status, refresh } = await useAsyncData(
   `base-${JSON.stringify(baseConfig.value)}`,
   async () => {
     const { source, filters } = baseConfig.value
     const currentView = baseConfig.value.views[activeView.value]
-    
+
     // Get docs from both collections
     // Note: If assets collection doesn't exist (e.g. no assets generated yet), queryCollection might fail or return empty?
     // We try/catch the assets query just in case
@@ -460,33 +471,33 @@ const { data: notes, status, refresh } = await useAsyncData(
     } catch (e) {
       // Ignore if assets collection unavailable
     }
-    
+
     const contentDocs = await queryCollection('docs').all()
     const allDocs = [...contentDocs, ...assetDocs]
-    
+
     // Initial system file exclusion
     let filtered = allDocs.filter(doc => {
       const path = doc.path || ''
       const id = (doc as any).id || (doc as any)._id || ''
       const stem = (doc as any).stem || ''
-      
+
       // Exclude system files
       if (path.includes('.obsidian') || id.includes('.obsidian')) return false
       if (path.endsWith('.json') || path.endsWith('.yml')) return false
       if (path.includes('.navigation')) return false
       if (stem === 'index') return false
-      
+
       return true
     })
-    
+
     // Filter by source folder if specified
     if (source) {
       const sourcePath = source.startsWith('/') ? source : `/${source}`
-      filtered = filtered.filter(doc => 
+      filtered = filtered.filter(doc =>
         doc.path?.toLowerCase().includes(sourcePath.toLowerCase().replace(/\/$/, ''))
       )
     }
-    
+
     // Debug log for assets
     if (baseConfig.value.filters && JSON.stringify(baseConfig.value.filters).includes('Assets')) {
        console.log('[ObsidianBase] filtered docs for Assets:', filtered.length)
@@ -497,87 +508,100 @@ const { data: notes, status, refresh } = await useAsyncData(
           }
        }
     }
-    
+
     // Apply global filters
     if (filters) {
       filtered = filtered.filter(doc => evaluateFilter(filters, doc))
     }
-    
+
     // Apply view-specific filters
     if (currentView?.filters) {
       filtered = filtered.filter(doc => evaluateFilter(currentView.filters, doc))
     }
-    
-    // Apply sorting - prefer userSort, then config sort, then default
-    const sortConfig = currentView?.sort
-    if (userSort.value) {
-      // User-initiated column sort
-      const { column, direction } = userSort.value
-      const dir = direction === 'desc' ? -1 : 1
-      filtered = [...filtered].sort((a, b) => {
-        let aVal = getProperty(a, column)
-        let bVal = getProperty(b, column)
-        
-        // Handle date strings
+
+    return filtered
+  },
+  { watch: [activeView] }
+)
+
+/**
+ * Apply sorting to notes - done as computed property for proper client-side reactivity
+ * This ensures sorting works on static sites where useAsyncData doesn't re-run
+ */
+const notes = computed(() => {
+  if (!rawNotes.value) return []
+
+  const currentView = baseConfig.value.views[activeView.value]
+  const sortConfig = currentView?.sort
+  let result = [...rawNotes.value]
+
+  // Apply sorting - prefer userSort, then config sort, then default
+  if (userSort.value) {
+    // User-initiated column sort
+    const { column, direction } = userSort.value
+    const dir = direction === 'desc' ? -1 : 1
+    result.sort((a, b) => {
+      let aVal = getProperty(a, column)
+      let bVal = getProperty(b, column)
+
+      // Handle date strings
+      if (typeof aVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(aVal)) {
+        aVal = new Date(aVal).getTime()
+      }
+      if (typeof bVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(bVal)) {
+        bVal = new Date(bVal).getTime()
+      }
+
+      if (aVal === bVal) return 0
+      if (aVal === undefined || aVal === null || Number.isNaN(aVal)) return 1
+      if (bVal === undefined || bVal === null || Number.isNaN(bVal)) return -1
+
+      const cmp = typeof aVal === 'string' && typeof bVal === 'string'
+        ? aVal.localeCompare(bVal, undefined, { numeric: true })
+        : (aVal < bVal ? -1 : 1)
+      return cmp * dir
+    })
+  } else if (sortConfig?.length) {
+    // Config-based sort
+    result.sort((a, b) => {
+      for (const sort of sortConfig) {
+        const prop = sort.property
+        const dir = sort.direction === 'DESC' ? -1 : 1
+
+        let aVal = getProperty(a, prop)
+        let bVal = getProperty(b, prop)
+
+        // Handle date strings - convert to timestamps for comparison
         if (typeof aVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(aVal)) {
           aVal = new Date(aVal).getTime()
         }
         if (typeof bVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(bVal)) {
           bVal = new Date(bVal).getTime()
         }
-        
-        if (aVal === bVal) return 0
-        if (aVal === undefined || aVal === null || Number.isNaN(aVal)) return 1
-        if (bVal === undefined || bVal === null || Number.isNaN(bVal)) return -1
-        
-        const cmp = typeof aVal === 'string' && typeof bVal === 'string'
-          ? aVal.localeCompare(bVal, undefined, { numeric: true })
-          : (aVal < bVal ? -1 : 1)
-        return cmp * dir
-      })
-    } else if (sortConfig?.length) {
-      // Config-based sort
-      filtered = [...filtered].sort((a, b) => {
-        for (const sort of sortConfig) {
-          const prop = sort.property
-          const dir = sort.direction === 'DESC' ? -1 : 1
-          
-          let aVal = getProperty(a, prop)
-          let bVal = getProperty(b, prop)
-          
-          // Handle date strings - convert to timestamps for comparison
-          if (typeof aVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(aVal)) {
-            aVal = new Date(aVal).getTime()
-          }
-          if (typeof bVal === 'string' && /^\d{4}-\d{2}-\d{2}/.test(bVal)) {
-            bVal = new Date(bVal).getTime()
-          }
-          
-          if (aVal === bVal) continue
-          if (aVal === undefined || aVal === null || Number.isNaN(aVal)) return 1 * dir
-          if (bVal === undefined || bVal === null || Number.isNaN(bVal)) return -1 * dir
-          if (aVal < bVal) return -1 * dir
-          if (aVal > bVal) return 1 * dir
-        }
-        return 0
-      })
-    } else {
-      // Default sort by title
-      filtered = [...filtered].sort((a, b) => 
-        (a.title || '').localeCompare(b.title || '')
-      )
-    }
-    
-    // Apply limit if specified
-    const limit = currentView?.limit
-    if (limit && limit > 0) {
-      filtered = filtered.slice(0, limit)
-    }
-    
-    return filtered
-  },
-  { watch: [activeView, userSort] }
-)
+
+        if (aVal === bVal) continue
+        if (aVal === undefined || aVal === null || Number.isNaN(aVal)) return 1 * dir
+        if (bVal === undefined || bVal === null || Number.isNaN(bVal)) return -1 * dir
+        if (aVal < bVal) return -1 * dir
+        if (aVal > bVal) return 1 * dir
+      }
+      return 0
+    })
+  } else {
+    // Default sort by title
+    result.sort((a, b) =>
+      (a.title || '').localeCompare(b.title || '')
+    )
+  }
+
+  // Apply limit if specified
+  const limit = currentView?.limit
+  if (limit && limit > 0) {
+    result = result.slice(0, limit)
+  }
+
+  return result
+})
 
 // Get image property for cards (with baseURL support)
 const getCardImage = (doc: any): string | null => {

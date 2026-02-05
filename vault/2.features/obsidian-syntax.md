@@ -43,7 +43,7 @@ You can embed notes, images, or even blocks of text directly into another note u
 
 **Syntax:**
 ```md
-![[https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800]]
+![Writing workspace with laptop and coffee](https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800)
 ```
 
 **Result:**

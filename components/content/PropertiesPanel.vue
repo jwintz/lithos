@@ -97,8 +97,8 @@ function inferType(key: string, value: any): string {
   if (typeof value === 'string') {
     // Check for wikilink format [[...]]
     if (value.match(/^\[\[.+\]\]$/)) return 'wikilink'
-    // Check for HTML link (malformed frontmatter)
-    if (value.match(/^<a\s+href=/i)) return 'malformed-link'
+    // Check for HTML anchor (wikilink transformed to anchor by MDC)
+    if (value.match(/^<a\s+href=/i)) return 'html-link'
     if (value.match(/^https?:\/\//)) return 'url'
     if (value.match(/^\d{4}-\d{2}-\d{2}/)) return 'date'
     if (value.match(/^#[a-fA-F0-9]{6}$/)) return 'color'
@@ -119,6 +119,28 @@ function extractWikilink(value: string): { target: string; display: string } {
     }
   }
   return { target: value, display: value }
+}
+
+// Extract link info from HTML anchor tag (transformed wikilink)
+// Note: The value may be truncated by content schema, so handle partial matches
+function extractHtmlLink(value: string): { href: string; text: string } {
+  // Parse: <a href="/path" class="...">Display Text</a>
+  const hrefMatch = value.match(/href="([^"]+)"/)
+  const textMatch = value.match(/>([^<]+)<\/a>/)
+
+  // If we can extract href, use it
+  if (hrefMatch?.[1]) {
+    const href = hrefMatch[1]
+    const text = textMatch?.[1] || href.split('/').filter(Boolean).pop() || 'Link'
+    return { href, text }
+  }
+
+  // Truncated value - try to provide something useful
+  // The value might be truncated (e.g., "<a href=")
+  return {
+    href: '#',
+    text: '(truncated link)'
+  }
 }
 
 // Format date for display
@@ -218,20 +240,22 @@ const isOpen = computed(() => userToggled.value ? userOpen.value : !props.collap
 
           <!-- Wikilink -->
           <template v-else-if="prop.type === 'wikilink'">
-            <NuxtLink 
-              :to="`/${extractWikilink(prop.value).target.toLowerCase().replace(/\s+/g, '-')}`" 
+            <NuxtLink
+              :to="`/${extractWikilink(prop.value).target.toLowerCase().replace(/\s+/g, '-')}`"
               class="wikilink"
             >
               {{ extractWikilink(prop.value).display }}
             </NuxtLink>
           </template>
 
-          <!-- Malformed link (show as text, not raw HTML) -->
-          <template v-else-if="prop.type === 'malformed-link'">
-            <span class="malformed-value" title="Malformed link in frontmatter">
-              <Icon name="heroicons:exclamation-triangle" size="14" />
-              <span>Invalid link format</span>
-            </span>
+          <!-- HTML Link (wikilink transformed to anchor by MDC) -->
+          <template v-else-if="prop.type === 'html-link'">
+            <NuxtLink
+              :to="extractHtmlLink(prop.value).href"
+              class="wikilink"
+            >
+              {{ extractHtmlLink(prop.value).text }}
+            </NuxtLink>
           </template>
 
           <!-- URL -->

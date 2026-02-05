@@ -24,6 +24,109 @@ let ignoredPatternsRef: string[] = []
 // Track if we're in SSG mode to adjust memory strategies
 let isSSGMode = false
 
+// Store protected frontmatter wikilinks temporarily (filePath -> protected values)
+// This allows us to restore them in afterParse after MDC processing
+const protectedFrontmatterMap = new Map<string, Map<string, string>>()
+
+/**
+ * Protect wikilinks in frontmatter from MDC transformation
+ * Returns the frontmatter data, content without frontmatter, and a map of protected values
+ */
+function protectFrontmatterWikilinks(content: string): { 
+  frontmatter: Record<string, any> | null
+  content: string
+  protectedValues: Map<string, string>
+} {
+  const protectedValues = new Map<string, string>()
+  
+  // Check if content has frontmatter
+  if (!content.trimStart().startsWith('---')) {
+    return { frontmatter: null, content, protectedValues }
+  }
+  
+  const endMatch = content.match(/^---\r?\n[\s\S]*?\r?\n---/)
+  if (!endMatch) {
+    return { frontmatter: null, content, protectedValues }
+  }
+  
+  const frontmatterBlock = endMatch[0]
+  let frontmatterContent = frontmatterBlock.slice(3, -3).trim()
+  
+  // Find and protect wikilinks in frontmatter values
+  // Pattern: key: "[[...]]" or key: [[...]] (YAML array style)
+  let protectCounter = 0
+  
+  // Protect quoted wikilinks: "[[...]]"
+  frontmatterContent = frontmatterContent.replace(
+    /(".*?\[\[.*?\]\].*?")/g,
+    (match) => {
+      const key = `__WIKILINK_PROTECTED_${protectCounter++}__`
+      protectedValues.set(key, match.slice(1, -1)) // Remove quotes
+      return `"${key}"`
+    }
+  )
+  
+  // Also protect unquoted wikilinks that appear as scalar values
+  // This handles cases like: project: [[Projects/MGDA]]
+  frontmatterContent = frontmatterContent.replace(
+    /(:\s*)(\[\[.*?\]\])/g,
+    (match, prefix, wikilink) => {
+      const key = `__WIKILINK_PROTECTED_${protectCounter++}__`
+      protectedValues.set(key, wikilink)
+      return `${prefix}"${key}"`
+    }
+  )
+  
+  // Reconstruct content with protected frontmatter
+  const newFrontmatterBlock = `---\n${frontmatterContent}\n---`
+  const newContent = content.replace(frontmatterBlock, newFrontmatterBlock)
+  
+  // Parse the (now protected) frontmatter
+  let frontmatter: Record<string, any> | null = null
+  try {
+    frontmatter = yaml.load(frontmatterContent) as Record<string, any>
+  } catch (e) {
+    // Ignore parsing errors
+  }
+  
+  return { frontmatter, content: newContent, protectedValues }
+}
+
+/**
+ * Restore protected wikilinks in parsed data
+ * In Nuxt Content v3, the afterParse hook receives:
+ * - file.body: the raw markdown content (string)
+ * - ctx.content: the parsed content object with frontmatter fields
+ * We need to restore placeholders in both.
+ */
+function restoreFrontmatterWikilinks(data: any, protectedValues: Map<string, string>): void {
+  if (!data || !protectedValues.size) return
+  
+  function restoreInValue(value: any): any {
+    if (typeof value === 'string') {
+      let result = value
+      for (const [placeholder, original] of protectedValues) {
+        result = result.replace(new RegExp(placeholder, 'g'), original)
+      }
+      return result
+    }
+    if (Array.isArray(value)) {
+      return value.map(restoreInValue)
+    }
+    if (typeof value === 'object' && value !== null) {
+      for (const key of Object.keys(value)) {
+        value[key] = restoreInValue(value[key])
+      }
+    }
+    return value
+  }
+  
+  // Restore in all data properties
+  for (const key of Object.keys(data)) {
+    data[key] = restoreInValue(data[key])
+  }
+}
+
 export default defineNuxtModule({
   meta: {
     name: 'obsidian-transform',
@@ -268,6 +371,23 @@ _file: "${relativePath}"
       let content = file.body
       if (!content || typeof content !== 'string') return
 
+      // 0. Protect wikilinks in frontmatter from MDC transformation
+      // MDC transforms [[...]] to HTML in ALL string values including frontmatter
+      // This causes "(truncated link)" issues in PropertiesPanel
+      // We protect them here and unprotect in afterParse
+      const { frontmatter: rawFrontmatter, content: contentWithoutFm, protectedValues } = protectFrontmatterWikilinks(content)
+      content = contentWithoutFm
+      
+      // Store protected values for restoration in afterParse
+      // Use the original file path as key and store it in a property that won't be modified
+      const fileId = filePathStr
+      if (protectedValues.size > 0 && fileId) {
+        protectedFrontmatterMap.set(fileId, protectedValues)
+        // Store the original path in a custom property so afterParse can find it
+        // even if file.path is transformed by other modules (e.g., daily-notes)
+        file._originalFilePath = fileId
+      }
+
       // 1. Extract wikilinks for graph before any transformation
       // In SSG mode, limit extractedLinks size to prevent memory bloat
       if (filePath) {
@@ -369,11 +489,24 @@ _file: "${relativePath}"
     // @ts-ignore
     nuxt.hook('content:file:afterParse', (ctx: any) => {
       const file = ctx.file
+      const content = ctx.content // This contains the parsed frontmatter!
       // console.log('[obsidian-transform] afterParse:', file._id)
       const ext = file.extension || file._extension || ''
       if (ext !== '.md' && ext !== 'md') return
 
       const filePath = file.path || file._path || ''
+      
+      // Restore protected frontmatter wikilinks
+      // Use _originalFilePath if available (set in beforeParse), otherwise fall back to current path
+      const fileId = file._originalFilePath || filePath
+      const protectedValues = protectedFrontmatterMap.get(fileId)
+      if (protectedValues && protectedValues.size > 0) {
+        // Restore in the parsed content object (contains frontmatter fields)
+        restoreFrontmatterWikilinks(content, protectedValues)
+        // Also restore in the file body for completeness
+        restoreFrontmatterWikilinks(file, protectedValues)
+        protectedFrontmatterMap.delete(fileId) // Clean up
+      }
       
       // Filter ignored files if they slipped through
       if (filePath && ignoredPatternsRef.some(p => new RegExp(p).test(filePath))) {

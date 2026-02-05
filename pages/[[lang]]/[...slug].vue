@@ -65,9 +65,11 @@ const sortedNavigation = computed(() => {
         if (item.order !== undefined && item.order !== null) return Number(item.order)
         if (item.navigation?.order !== undefined && item.navigation?.order !== null) return Number(item.navigation.order)
 
-        // Priority 2: Numeric prefix in stem (e.g., "1.guide" -> 1, "2.architecture" -> 2)
+        // Priority 2: Numeric prefix in stem's LAST segment (e.g., "1.guide/5.deployment" -> 5)
+        // Must match filter-navigation.ts exactly
         const stem = item.stem || ''
-        const prefixMatch = stem.match(/^(\d+)\./)
+        const lastSegment = stem.split('/').pop() || ''
+        const prefixMatch = lastSegment.match(/^(\d+)\./)
         if (prefixMatch) return Number(prefixMatch[1])
 
         // Priority 3: Sub-item specific ordering
@@ -374,11 +376,8 @@ const dailyNotesRoute = computed(() => runtimeConfig.public.dailyNotesRoute || '
 onMounted(async () => {
   // Force TOC to re-calculate headings after mount
   // ContentToc listens to 'page:loading:end' to set --indicator-size
-  console.log('[TOC Debug] mounted. Headings found:', document.querySelectorAll('h2, h3').length)
   await nextTick()
-  console.log('[TOC Debug] nextTick. Headings found:', document.querySelectorAll('h2, h3').length)
   useNuxtApp().callHook('page:loading:end')
-  console.log('[TOC Debug] Hook called.')
 
   // Watch for changes to the active ToC link
   const observer = new MutationObserver((mutations) => {
