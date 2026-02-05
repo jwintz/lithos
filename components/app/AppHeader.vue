@@ -3,11 +3,14 @@
  * AppHeader - Custom header for Lithos
  *
  * Overrides Docus default to fix baseURL double-prefix issue.
- * The `to="/"` ensures NuxtLink handles baseURL correctly.
+ * Uses useLocalePath() to properly handle baseURL in all contexts.
  */
 
 const appConfig = useAppConfig()
 const site = useSiteConfig()
+const localePath = useLocalePath()
+
+const homePath = computed(() => localePath('/'))
 
 const links = computed(() => appConfig.github && appConfig.github.url
   ? [
@@ -24,7 +27,7 @@ const links = computed(() => appConfig.github && appConfig.github.url
 <template>
   <UHeader
     :ui="{ center: 'flex-1' }"
-    to="/"
+    :to="homePath"
     :title="appConfig.header?.title || site.name"
   >
     <AppHeaderCenter />

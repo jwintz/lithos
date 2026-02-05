@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Wikilinks in frontmatter now display correctly instead of "(truncated link)"
 - RSS feed now uses correct site URL instead of `localhost` on GitHub/GitLab Pages
+- Header logo link no longer causes double baseURL prefix (e.g., `/jwintz/jwintz/`) when clicked
+- Client-side navigation sorting now works correctly for client-side rendered pages
+- GitLab CI cache now properly preserves `node_modules/` and `.nuxt/` between builds
+- GitLab CI now updates existing lithos clone instead of always cloning fresh
 
 ## [0.1.0] - 2026-02-05
 

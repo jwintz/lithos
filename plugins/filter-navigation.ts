@@ -3,6 +3,8 @@
  * 
  * Intercepts navigation data from Docus/Nuxt Content and applies custom sorting and filtering.
  */
+import { inject, type Ref } from 'vue'
+
 export default defineNuxtPlugin((nuxtApp) => {
   console.log('[FilterNav] Plugin initializing...')
 
@@ -327,9 +329,15 @@ export default defineNuxtPlugin((nuxtApp) => {
        }
     })
   } else if (process.client) {
-    // Client side - navigation is already sorted on server
-    // We only inject UI elements (BASE pills, sidebar controls)
-    console.log('[FilterNav] Client Init')
+    // Client side - need to sort navigation if not SSR'd
+    console.log('[FilterNav] Client Init - Sorting navigation')
+
+    // Try to get navigation from injection (Docus provides this)
+    const navigation = inject<Ref<any[]>>('navigation', null as any)
+    if (navigation?.value) {
+      console.log('[FilterNav] Sorting injected navigation on client')
+      sortTree(navigation.value)
+    }
 
     // Filter Obsidian + Fix Base paths + Inject BASE pills + Sidebar controls
     const postRenderCleanup = () => {
