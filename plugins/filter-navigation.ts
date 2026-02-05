@@ -339,8 +339,88 @@ export default defineNuxtPlugin((nuxtApp) => {
       sortTree(navigation.value)
     }
 
+    // Sort sidebar DOM elements directly (fallback when SSR sorting doesn't work)
+    const sortSidebarDOM = () => {
+      const sidebar = document.querySelector('aside[data-slot="left"]')
+      if (!sidebar) return
+      
+      // Find the root nav/ul containing top-level items
+      const rootList = sidebar.querySelector('nav > ul, nav > div > ul, ul')
+      if (!rootList) return
+      
+      // Get all direct children (li elements)
+      const items = Array.from(rootList.children).filter(el => el.tagName === 'LI') as HTMLLIElement[]
+      if (items.length === 0) return
+      
+      // Extract order info from each item
+      const getItemOrder = (li: HTMLLIElement): number => {
+        const link = li.querySelector('a[href], button')
+        const text = link?.textContent?.trim()?.toLowerCase() || ''
+        const href = link?.getAttribute('href') || ''
+        const slug = href.split('/').filter(Boolean).pop()?.toLowerCase() || ''
+        
+        // Use manual order map
+        if (manualOrder[text] !== undefined) return manualOrder[text]
+        if (manualOrder[slug] !== undefined) return manualOrder[slug]
+        
+        return 999
+      }
+      
+      // Sort items
+      items.sort((a, b) => getItemOrder(a) - getItemOrder(b))
+      
+      // Reorder DOM
+      items.forEach(item => rootList.appendChild(item))
+      
+      console.log('[FilterNav] DOM-sorted sidebar items')
+      
+      // Also sort children within folders (Blog, Projects, etc.)
+      items.forEach(li => {
+        const childList = li.querySelector('ul')
+        if (!childList) return
+        
+        const childItems = Array.from(childList.children).filter(el => el.tagName === 'LI') as HTMLLIElement[]
+        if (childItems.length <= 1) return
+        
+        // Sort by href path which includes the order prefix or date
+        childItems.sort((a, b) => {
+          const linkA = a.querySelector('a[href]')
+          const linkB = b.querySelector('a[href]')
+          const hrefA = linkA?.getAttribute('href') || ''
+          const hrefB = linkB?.getAttribute('href') || ''
+          
+          // Check subOrder map first
+          const pathA = hrefA.replace(/^\/jwintz/, '').toLowerCase()
+          const pathB = hrefB.replace(/^\/jwintz/, '').toLowerCase()
+          
+          if (subOrder[pathA] !== undefined && subOrder[pathB] !== undefined) {
+            return subOrder[pathA] - subOrder[pathB]
+          }
+          
+          // For blog posts, sort by date DESC (newer first)
+          if (hrefA.includes('/blog/') && hrefB.includes('/blog/')) {
+            // Extract date from href like /blog/2026-01-20-...
+            const dateA = hrefA.match(/\/blog\/(\d{4}-\d{2}-\d{2})/)?.[1] || ''
+            const dateB = hrefB.match(/\/blog\/(\d{4}-\d{2}-\d{2})/)?.[1] || ''
+            return dateB.localeCompare(dateA) // DESC order
+          }
+          
+          // Default: alphabetical
+          const textA = linkA?.textContent?.trim() || ''
+          const textB = linkB?.textContent?.trim() || ''
+          return textA.localeCompare(textB)
+        })
+        
+        // Reorder DOM
+        childItems.forEach(item => childList.appendChild(item))
+      })
+    }
+
     // Filter Obsidian + Fix Base paths + Inject BASE pills + Sidebar controls
     const postRenderCleanup = () => {
+      // Sort sidebar DOM (fallback for when SSR sorting doesn't work)
+      sortSidebarDOM()
+      
       // Filter .obsidian items
       document.querySelectorAll('aside a, nav a').forEach(item => {
         const href = item.getAttribute('href') || ''
