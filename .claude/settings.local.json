@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(tr:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(pkill:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npx nuxi prepare)",
+      "Skill(agent-browser)",
+      "Bash(python3:*)",
+      "Bash(agent-browser open:*)",
+      "Bash(agent-browser screenshot:*)",
+      "Bash(agent-browser eval:*)",
+      "Bash(agent-browser console:*)",
+      "Bash(agent-browser reload:*)",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -30 \"\"{}\"\"')",
+      "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 \"\"{}\"\"')",
+      "Bash(xargs:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

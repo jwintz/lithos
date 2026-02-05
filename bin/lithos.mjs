@@ -205,7 +205,7 @@ try {
   
   // For generate command: handle post-generation tasks
   if (command === 'generate') {
-    const { cpSync, existsSync: checkExists, mkdirSync, readdirSync, lstatSync, readlinkSync } = await import('fs')
+    const { cpSync, existsSync: checkExists, mkdirSync, readdirSync, lstatSync, readlinkSync, readFileSync, writeFileSync } = await import('fs')
     
     const defaultOutput = resolve('.output/public')
     const finalOutput = outputPath ? resolve(outputPath) : defaultOutput
@@ -301,6 +301,21 @@ try {
           })
         }
         console.log('[Lithos] Vault copied successfully')
+      }
+    }
+    
+    // Fix redirect HTML to include baseURL if needed (must run AFTER all copying)
+    const baseURL = env.NUXT_APP_BASE_URL || '/'
+    if (baseURL !== '/') {
+      const indexHtml = resolve(finalOutput, 'index.html')
+      if (checkExists(indexHtml)) {
+        const content = readFileSync(indexHtml, 'utf-8')
+        // Check if it's a redirect page (contains meta refresh to /home)
+        if (content.includes('url=/home') && !content.includes(`url=${baseURL}`)) {
+          const fixedContent = content.replace('url=/home', `url=${baseURL}home`)
+          writeFileSync(indexHtml, fixedContent)
+          console.log(`[Lithos] Fixed redirect to include baseURL: ${baseURL}home`)
+        }
       }
     }
   }
