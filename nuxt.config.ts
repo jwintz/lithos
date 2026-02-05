@@ -333,7 +333,7 @@ export default defineNuxtConfig({
         `/_raw/${p.replace(/\\/g, '').replace('/**', '/**')}`,
         { status: 404 }
     ])) as any,
-    ...(!hasLandingPage && { '/': { redirect: { to: (process.env.NUXT_APP_BASE_URL || '/') + 'home', statusCode: 301 } } })
+    ...(!hasLandingPage && { '/': { redirect: { to: '/home', statusCode: 301 } } })
   },
 
   // Hooks for static asset mounting

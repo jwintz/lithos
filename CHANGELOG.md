@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Client-side navigation sorting now works correctly for client-side rendered pages
 - GitLab CI cache now properly preserves `node_modules/` and `.nuxt/` between builds
 - GitLab CI now updates existing lithos clone instead of always cloning fresh
+- Root redirect rule no longer duplicates baseURL (fixes `/jwintz/jwintz/home` issue)
 
 ## [0.1.0] - 2026-02-05
 
