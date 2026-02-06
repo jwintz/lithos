@@ -270,8 +270,8 @@ try {
         if (outputInsideVault) {
           // Manual copy of top-level items, skipping non-vault directories
           const entries = readdirSync(resolvedVault)
-          // Directories to skip: hidden, node_modules, build outputs, cloned repos, and CI artifacts
-          const skipDirs = ['node_modules', 'lithos', 'public', '.output', '.nuxt', '.data', '.git']
+          // Directories to skip: hidden, node_modules, build outputs, cloned repos, CI artifacts, and agent skills
+          const skipDirs = ['node_modules', 'lithos', 'public', '.output', '.nuxt', '.data', '.git', '.pi']
           for (const entry of entries) {
             // Skip hidden files and known non-content directories
             if (entry.startsWith('.') || skipDirs.includes(entry)) {
@@ -295,8 +295,8 @@ try {
             recursive: true,
             filter: (src) => {
               const name = src.split('/').pop()
-              // Skip hidden files, node_modules, and cloned lithos repo
-              return !name.startsWith('.') && name !== 'node_modules' && name !== 'lithos'
+              // Skip hidden files, node_modules, cloned lithos repo, and agent skills
+              return !name.startsWith('.') && name !== 'node_modules' && name !== 'lithos' && name !== '.pi'
             }
           })
         }
