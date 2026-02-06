@@ -72,6 +72,8 @@ if (command === 'cleanup') {
     '.output',
     '.data',
     '.nuxt',
+    'dist',
+    'public',
     'node_modules/.cache/nuxt',
     'node_modules/.vite',
   ]
