@@ -21,7 +21,7 @@ function escapeXml(text: string): string {
 }
 
 /**
- * Convert Nuxt Content v3 body to plain text for RSS content
+ * Convert Nuxt Content v3 body to HTML for RSS content
  *
  * Body structure in Nuxt Content v3:
  * - body.type: 'minimark' (or 'root')
@@ -29,27 +29,27 @@ function escapeXml(text: string): string {
  *   - Each node: ["tag", {attrs}, ...children] or just "text string"
  * - body.toc: Table of contents
  */
-function astToText(node: any): string {
+function astToHtml(node: any): string {
   if (!node) return ''
 
-  // Plain string
-  if (typeof node === 'string') return node
+  // Plain string - escape HTML entities
+  if (typeof node === 'string') return escapeXml(node)
 
   // Nuxt Content v3 body object with value array
   if (node.value && Array.isArray(node.value)) {
-    return extractFromCompactAst(node.value)
+    return compactAstToHtml(node.value)
   }
 
   // Direct array
   if (Array.isArray(node)) {
-    return extractFromCompactAst(node)
+    return compactAstToHtml(node)
   }
 
   return ''
 }
 
 /**
- * Extract text from Nuxt Content v3 compact AST format
+ * Extract plain text from AST (for description field)
  * Format: ["tag", {attrs}, child1, child2, ...] or just "text"
  */
 function extractFromCompactAst(nodes: any[]): string {
@@ -87,6 +87,79 @@ function extractFromCompactAst(nodes: any[]): string {
 
     return ''
   }).join('').trim()
+}
+
+/**
+ * Convert compact AST to HTML
+ * Format: ["tag", {attrs}, child1, child2, ...] or just "text"
+ */
+function compactAstToHtml(nodes: any[]): string {
+  if (!Array.isArray(nodes)) return ''
+
+  return nodes.map(node => {
+    // Plain text string - escape HTML entities
+    if (typeof node === 'string') return escapeXml(node)
+
+    // Compact AST node: ["tag", {attrs}, ...children]
+    if (Array.isArray(node) && node.length >= 1) {
+      const [tag, attrs, ...children] = node
+
+      // Handle void elements (no closing tag)
+      const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+                           'link', 'meta', 'param', 'source', 'track', 'wbr']
+
+      if (voidElements.includes(tag)) {
+        const attrStr = formatAttrs(attrs)
+        return `<${tag}${attrStr} />`
+      }
+
+      // Build opening tag with attributes
+      const attrStr = formatAttrs(attrs)
+      const openTag = attrStr ? `<${tag}${attrStr}>` : `<${tag}>`
+
+      // Recursively process children
+      const childHtml = compactAstToHtml(children)
+
+      // Build closing tag
+      const closeTag = `</${tag}>`
+
+      return openTag + childHtml + closeTag
+    }
+
+    return ''
+  }).join('')
+}
+
+/**
+ * Format attributes object as HTML attribute string
+ */
+function formatAttrs(attrs: Record<string, any> | undefined): string {
+  if (!attrs || typeof attrs !== 'object') return ''
+
+  return Object.entries(attrs)
+    .filter(([key, val]) => val !== undefined && val !== null && val !== false)
+    .map(([key, val]) => {
+      // Handle boolean attributes (e.g., checked, disabled)
+      if (val === true) return ` ${key}`
+
+      // Handle class arrays
+      if (key === 'class' && Array.isArray(val)) {
+        const classStr = val.filter(Boolean).join(' ')
+        return classStr ? ` ${key}="${escapeXml(classStr)}"` : ''
+      }
+
+      // Handle style objects
+      if (key === 'style' && typeof val === 'object') {
+        const styleStr = Object.entries(val)
+          .map(([prop, value]) => `${prop}:${value}`)
+          .join(';')
+        return ` ${key}="${escapeXml(styleStr)}"`
+      }
+
+      // Standard attribute
+      return ` ${key}="${escapeXml(String(val))}"`
+    })
+    .join('')
 }
 
 export default defineEventHandler(async (event) => {
@@ -174,15 +247,19 @@ export default defineEventHandler(async (event) => {
     const postPath = post.path || ''
     const link = `${siteUrl}${baseURL === '/' ? '' : baseURL.replace(/\/$/, '')}${postPath}`
 
-    // Extract content from body AST
-    let content = ''
+    // Extract plain text description from body AST
+    let plainTextContent = ''
+    let htmlContent = ''
     if (post.body) {
-      content = astToText(post.body).trim()
+      plainTextContent = extractFromCompactAst(post.body.value || post.body).trim()
+      htmlContent = astToHtml(post.body).trim()
     }
 
-    // Fall back to description if no body content extracted
-    const description = post.description || post.meta?.description || ''
-    const itemContent = content || description
+    // Description: use explicit description or fall back to plain text excerpt
+    const description = post.description || post.meta?.description || plainTextContent.slice(0, 300) + (plainTextContent.length > 300 ? '...' : '')
+
+    // Full HTML content for content:encoded
+    const fullContent = htmlContent || `<p>${escapeXml(description)}</p>`
 
     // Build item with content:encoded for full content
     return `    <item>
@@ -191,7 +268,7 @@ export default defineEventHandler(async (event) => {
       <guid isPermaLink="true">${link}</guid>
       <pubDate>${pubDate}</pubDate>
       <description><![CDATA[${description}]]></description>
-      <content:encoded><![CDATA[${itemContent}]]></content:encoded>
+      <content:encoded><![CDATA[${fullContent}]]></content:encoded>
     </item>`
   }).join('\n')
 
