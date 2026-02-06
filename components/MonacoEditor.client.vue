@@ -200,7 +200,7 @@ function registerLithosThemes() {
 .monaco-wrapper {
   position: relative;
   width: 100%;
-  min-height: 500px;
+  min-height: 400px;
   border: 1px solid var(--ui-border, #e4e4e7);
   border-radius: 0.5rem;
   overflow: hidden;
@@ -217,7 +217,8 @@ function registerLithosThemes() {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 500px;
+  height: 70vh;
+  min-height: 400px;
   color: var(--ui-text-muted, #71717a);
 }
 
@@ -236,13 +237,15 @@ function registerLithosThemes() {
 
 .monaco-editor-container {
   width: 100%;
-  height: 500px;
+  height: 70vh;
+  min-height: 400px;
 }
 
 /* Simple editor styles for fallback */
 .simple-editor {
   display: flex;
-  height: 500px;
+  height: 70vh;
+  min-height: 400px;
   overflow: auto;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 14px;

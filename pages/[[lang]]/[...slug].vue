@@ -11,6 +11,7 @@
 import { kebabCase } from 'scule'
 import type { ContentNavigationItem, Collections, DocsCollectionItem } from '@nuxt/content'
 import { findPageHeadline } from '@nuxt/content/utils'
+import { sortNavigationItems } from '~/composables/useNavSorting'
 
 definePageMeta({
   layout: 'docs',
@@ -29,74 +30,11 @@ const [{ data: page }] = await Promise.all([
     // Surround fetched client-side from navigation to respect custom sorting
 ])
 
-// Custom order matching the plugin
-const manualOrder: Record<string, number> = {
-  'home': 1,
-  'about': 2,
-  'bases': 3,
-  'blog': 4,
-  'projects': 5,
-  'research': 6,
-  'colophon': 7
-}
-
-const subOrder: Record<string, number> = {
-  '/bases/posts': 3.1,
-  '/bases/projects': 3.2,
-  '/bases/research': 3.3,
-  '/blog/2026-01-20-odin-monitor': 4.1,
-  '/projects/odin': 5.1,
-  '/projects/hyalo': 5.2,
-  '/projects/emacs': 5.3,
-  '/projects/emacs-swift': 5.4,
-  '/research/emacs-swift-research': 6.1,
-  '/research/emacs-swift-implementation': 6.2
-}
-
-// Compute sorted navigation locally to guarantee order for surround links
-// Must mirror filter-navigation.ts priority order exactly
+// Compute sorted navigation using shared composable
+// Ensures surround links use exact same order as sidebar
 const sortedNavigation = computed(() => {
   if (!navigation?.value) return []
-
-  const sortItems = (items: ContentNavigationItem[]): ContentNavigationItem[] => {
-    return [...items].sort((a, b) => {
-      const getOrder = (item: any) => {
-        // Priority 1: Explicit order or navigation.order from frontmatter
-        if (item.order !== undefined && item.order !== null) return Number(item.order)
-        if (item.navigation?.order !== undefined && item.navigation?.order !== null) return Number(item.navigation.order)
-
-        // Priority 2: Numeric prefix in stem's LAST segment (e.g., "1.guide/5.deployment" -> 5)
-        // Must match filter-navigation.ts exactly
-        const stem = item.stem || ''
-        const lastSegment = stem.split('/').pop() || ''
-        const prefixMatch = lastSegment.match(/^(\d+)\./)
-        if (prefixMatch) return Number(prefixMatch[1])
-
-        // Priority 3: Sub-item specific ordering
-        if (item.path && subOrder[item.path.toLowerCase()]) return subOrder[item.path.toLowerCase()]
-
-        // Priority 4: Manual order by title/slug (vault-specific fallback)
-        const title = (item.title || '').toLowerCase()
-        const slug = (item.path || '').split('/').filter(Boolean).pop()?.toLowerCase()
-
-        if (manualOrder[title] !== undefined) return manualOrder[title]
-        if (slug && manualOrder[slug] !== undefined) return manualOrder[slug]
-
-        return 999
-      }
-      const orderA = getOrder(a)
-      const orderB = getOrder(b)
-      if (orderA !== orderB) return orderA - orderB
-      return ((a as any).title || '').localeCompare((b as any).title || '')
-    }).map(item => {
-      if (item.children) {
-        return { ...item, children: sortItems(item.children) }
-      }
-      return item
-    })
-  }
-
-  return sortItems(navigation.value)
+  return sortNavigationItems(navigation.value)
 })
 
 // Calculate Surround Paths from sorted tree
@@ -650,7 +588,7 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   width: 100%;
-  min-height: 500px;
+  min-height: 400px;
   border-radius: 0.5rem;
 }
 </style>

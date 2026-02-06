@@ -840,10 +840,12 @@ function parseBaseYaml(yamlContent: string): any {
   if (!parsed || typeof parsed !== 'object') return { views: [{ type: 'table', name: 'Table' }] }
   const config: any = { views: [] }
   if (parsed.name) config.name = parsed.name
-  if (parsed.folder) config.source = parsed.folder
+  if (parsed.folder || parsed.path) config.source = parsed.folder || parsed.path
   if (typeof parsed.sort === 'string') {
     const [prop, dir] = parsed.sort.split(' ')
-    config.defaultSort = [{ property: prop, direction: dir?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC' }]
+    // Support separate 'order' key for direction (e.g., sort: date, order: desc)
+    const explicitDir = dir || parsed.order
+    config.defaultSort = [{ property: prop, direction: explicitDir?.toUpperCase() === 'ASC' ? 'ASC' : 'DESC' }]
   }
   if (typeof parsed.columns === 'string') config.defaultOrder = parsed.columns.split(',').map((c: string) => c.trim())
   if (parsed.limit) config.limit = parseInt(parsed.limit, 10)

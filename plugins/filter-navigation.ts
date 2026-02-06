@@ -1,128 +1,35 @@
 /**
- * Navigation Filter and Sort Plugin
- * 
- * Intercepts navigation data from Docus/Nuxt Content and applies custom sorting and filtering.
+ * Navigation Filter and Enhancement Plugin
+ *
+ * Handles DOM-level enhancements for navigation that cannot be done
+ * in the data layer (app.vue transform):
+ * - BASE pill injection (DOM elements not supported in nav data)
+ * - Sidebar collapse/expand controls
+ * - Corrupted navigation path fixing
+ * - .obsidian item filtering
+ * - Active folder expansion
+ *
+ * NOTE: Sorting and icon assignment are handled in app.vue's useAsyncData
+ * transform via sortNavigationItems() for SSR/client parity.
  */
-import { inject, type Ref } from 'vue'
+import {
+  folderIcons,
+} from '~/composables/useNavSorting'
 
 export default defineNuxtPlugin((nuxtApp) => {
-  console.log('[FilterNav] Plugin initializing...')
+  console.log('[FilterNav] Plugin initializing (DOM enhancements only)...')
 
-  // Custom folder/page ordering map (titles or slugs)
-  const manualOrder: Record<string, number> = {
-    'home': 1,
-    'about': 2,
-    'bases': 3,
-    'blog': 4,
-    'project': 5,
-    'projects': 5,
-    'research': 6,
-    'colophon': 7
-  }
+  // Track if we're currently making DOM changes to prevent feedback loops
+  let isModifyingDOM = false
 
-  // Icons for folders
-  const folderIcons: Record<string, string> = {
-    'bases': 'i-lucide:database',
-    'posts': 'i-lucide-file-text',
-    'blog': 'i-lucide-scroll',
-    'project': 'i-lucide-box',
-    'projects': 'i-lucide-box',
-    'research': 'i-lucide-microscope'
-  }
+  // Debounce timer for MutationObserver
+  let observerDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-  // Sub-items order
-  const subOrder: Record<string, number> = {
-    '/bases/posts': 3.1,
-    '/bases/projects': 3.2,
-    '/bases/research': 3.3,
-    '/blog/2026-01-20-odin-monitor': 4.1,
-    '/projects/odin': 5.1,
-    '/projects/hyalo': 5.2,
-    '/projects/emacs': 5.3,
-    '/projects/emacs-swift': 5.4,
-    '/research/emacs-swift-research': 6.1,
-    '/research/emacs-swift-implementation': 6.2
-  }
-
-  const sortTree = (items: any[], parentTitle?: string) => {
-    if (!items || !Array.isArray(items)) return
-
-    items.sort((a, b) => {
-      const getOrder = (item: any) => {
-        // Priority 1: Explicit order or navigation.order from frontmatter
-        if (item.order !== undefined && item.order !== null) return Number(item.order)
-        if (item.navigation?.order !== undefined && item.navigation?.order !== null) return Number(item.navigation.order)
-
-        // Priority 2: Numeric prefix in stem's LAST segment (e.g., "1.guide/5.deployment" -> 5)
-        const stem = item.stem || ''
-        const lastSegment = stem.split('/').pop() || ''
-        const prefixMatch = lastSegment.match(/^(\d+)\./)
-        if (prefixMatch) return Number(prefixMatch[1])
-
-        // Priority 3: Sub-item specific ordering
-        if (item.path && subOrder[item.path.toLowerCase()]) return subOrder[item.path.toLowerCase()]
-
-        // Priority 4: Manual order by title/slug (vault-specific fallback)
-        const title = (item.title || '').toLowerCase()
-        const slug = (item.path || '').split('/').filter(Boolean).pop()?.toLowerCase()
-        if (manualOrder[title] !== undefined) return manualOrder[title]
-        if (slug && manualOrder[slug] !== undefined) return manualOrder[slug]
-
-        return 999
-      }
-      const orderA = getOrder(a)
-      const orderB = getOrder(b)
-      if (orderA !== orderB) return orderA - orderB
-      return (a.title || '').localeCompare(b.title || '')
-    })
-
-    items.forEach(item => {
-      const slug = (item.path || '').split('/').filter(Boolean).pop()?.toLowerCase()
-      const itemPath = (item.path || '').toLowerCase()
-      const itemTitle = (item.title || '').toLowerCase()
-
-      // Detect base items by:
-      // 1. Path starting with /bases/
-      // 2. OR parent folder is "Bases" (handles navigation data corruption)
-      const isBaseByPath = itemPath.startsWith('/bases/') && itemPath !== '/bases'
-      const isBaseByParent = parentTitle?.toLowerCase() === 'bases'
-      const isBaseItem = isBaseByPath || isBaseByParent
-      const isBasesFolder = itemPath === '/bases' || itemTitle === 'bases'
-
-      // Debug: log base detection for items under Bases
-      if (isBaseByParent || isBasesFolder) {
-        console.log(`[FilterNav] Item "${item.title}" - parent: "${parentTitle}", path: "${itemPath}", isBaseItem: ${isBaseItem}, isBaseByParent: ${isBaseByParent}, isBaseByPath: ${isBaseByPath}`)
-      }
-
-      if (slug === 'project' && item.title !== 'Projects') item.title = 'Projects'
-
-      // Bases: ALL items under /bases/ (or under Bases folder) get database icon and BASE pill
-      // No special treatment based on name - uniform handling
-      if (isBasesFolder) {
-         item.icon = 'i-lucide:database'
-      } else if (isBaseItem) {
-         item.icon = 'i-lucide:database'
-         item.isBase = true
-         // Mark for DOM injection (CSS pseudo-elements conflict with NuxtUI)
-         item.class = ((item.class || '') + ' lithos-base-item').trim()
-         console.log(`[FilterNav] Added lithos-base-item class to "${item.title}"`)
-      } else if (slug && folderIcons[slug]) {
-        // Default folder icons (only for non-base items)
-        item.icon = folderIcons[slug]
-      }
-
-      // Pass current item's title as parent for children
-      if (item.children) sortTree(item.children, item.title)
-    })
-  }
-
-  // Fix corrupted navigation item hrefs and ensure correct active state
+  // Fix corrupted navigation item hrefs only - trust NuxtUI for active state management
   const fixNavigationPaths = () => {
     const sidebar = document.querySelector('aside[data-slot="left"]')
     if (!sidebar) return
-    
-    const currentPath = window.location.pathname
-    
+
     // Map of item names to correct paths (for items with corrupted navigation data)
     const pathMap: Record<string, string> = {
       // Top-level items
@@ -131,38 +38,24 @@ export default defineNuxtPlugin((nuxtApp) => {
       'Colophon': '/colophon',
       // Base items
       'Posts': '/bases/posts',
-      'Projects': '/bases/projects', 
+      'Projects': '/bases/projects',
       'Research': '/bases/research',
       'Assets': '/bases/assets',
       'Avatars': '/bases/avatars'
     }
-    
-    // Fix all links that might have wrong paths
+
+    // Fix all links that might have wrong paths - ONLY fix hrefs, don't touch active state
     sidebar.querySelectorAll('a[data-slot="link"]').forEach(link => {
       const titleSpan = link.querySelector('[data-slot="linkTitle"]')
       const title = titleSpan?.textContent?.trim()
-      
+
       if (title && pathMap[title]) {
         const correctPath = pathMap[title]
         const currentHref = link.getAttribute('href')
-        
+
         // Fix the href if it's wrong
         if (currentHref !== correctPath) {
           link.setAttribute('href', correctPath)
-        }
-        
-        // Update active styling based on current path
-        if (currentPath === correctPath) {
-          // This is the active page
-          link.classList.remove('text-muted')
-          link.classList.add('text-primary', 'font-medium')
-        } else {
-          // Not the active page - ensure no active styling
-          if (link.classList.contains('text-primary')) {
-            link.classList.remove('text-primary', 'font-medium')
-            link.classList.add('text-muted')
-            link.classList.remove('after:bg-primary')
-          }
         }
       }
     })
@@ -312,115 +205,15 @@ export default defineNuxtPlugin((nuxtApp) => {
     sidebar.insertBefore(controls, sidebar.firstChild)
   }
 
-  if (process.server) {
-    nuxtApp.hook('app:rendered', () => {
-       // Inspect payload to find the right key
-       console.log('[FilterNav] Server Payload Data Keys:', Object.keys(nuxtApp.payload.data))
-       
-       // Try common keys
-       const keys = Object.keys(nuxtApp.payload.data)
-       const navKey = keys.find(k => k.includes('navigation') || k.includes('content'))
-       
-       if (navKey && nuxtApp.payload.data[navKey]) {
-         console.log(`[FilterNav] Sorting Server Payload for key: ${navKey}`)
-         sortTree(nuxtApp.payload.data[navKey])
-       } else {
-         console.log('[FilterNav] Server Navigation NOT FOUND in payload.data')
-       }
-    })
-  } else if (process.client) {
-    // Client side - need to sort navigation if not SSR'd
-    console.log('[FilterNav] Client Init - Sorting navigation')
-
-    // Try to get navigation from injection (Docus provides this)
-    const navigation = inject<Ref<any[]>>('navigation', null as any)
-    if (navigation?.value) {
-      console.log('[FilterNav] Sorting injected navigation on client')
-      sortTree(navigation.value)
-    }
-
-    // Sort sidebar DOM elements directly (fallback when SSR sorting doesn't work)
-    const sortSidebarDOM = () => {
-      const sidebar = document.querySelector('aside[data-slot="left"]')
-      if (!sidebar) return
-      
-      // Find the root nav/ul containing top-level items
-      const rootList = sidebar.querySelector('nav > ul, nav > div > ul, ul')
-      if (!rootList) return
-      
-      // Get all direct children (li elements)
-      const items = Array.from(rootList.children).filter(el => el.tagName === 'LI') as HTMLLIElement[]
-      if (items.length === 0) return
-      
-      // Extract order info from each item
-      const getItemOrder = (li: HTMLLIElement): number => {
-        const link = li.querySelector('a[href], button')
-        const text = link?.textContent?.trim()?.toLowerCase() || ''
-        const href = link?.getAttribute('href') || ''
-        const slug = href.split('/').filter(Boolean).pop()?.toLowerCase() || ''
-        
-        // Use manual order map
-        if (manualOrder[text] !== undefined) return manualOrder[text]
-        if (manualOrder[slug] !== undefined) return manualOrder[slug]
-        
-        return 999
-      }
-      
-      // Sort items
-      items.sort((a, b) => getItemOrder(a) - getItemOrder(b))
-      
-      // Reorder DOM
-      items.forEach(item => rootList.appendChild(item))
-      
-      console.log('[FilterNav] DOM-sorted sidebar items')
-      
-      // Also sort children within folders (Blog, Projects, etc.)
-      items.forEach(li => {
-        const childList = li.querySelector('ul')
-        if (!childList) return
-        
-        const childItems = Array.from(childList.children).filter(el => el.tagName === 'LI') as HTMLLIElement[]
-        if (childItems.length <= 1) return
-        
-        // Sort by href path which includes the order prefix or date
-        childItems.sort((a, b) => {
-          const linkA = a.querySelector('a[href]')
-          const linkB = b.querySelector('a[href]')
-          const hrefA = linkA?.getAttribute('href') || ''
-          const hrefB = linkB?.getAttribute('href') || ''
-          
-          // Check subOrder map first
-          const pathA = hrefA.replace(/^\/jwintz/, '').toLowerCase()
-          const pathB = hrefB.replace(/^\/jwintz/, '').toLowerCase()
-          
-          if (subOrder[pathA] !== undefined && subOrder[pathB] !== undefined) {
-            return subOrder[pathA] - subOrder[pathB]
-          }
-          
-          // For blog posts, sort by date DESC (newer first)
-          if (hrefA.includes('/blog/') && hrefB.includes('/blog/')) {
-            // Extract date from href like /blog/2026-01-20-...
-            const dateA = hrefA.match(/\/blog\/(\d{4}-\d{2}-\d{2})/)?.[1] || ''
-            const dateB = hrefB.match(/\/blog\/(\d{4}-\d{2}-\d{2})/)?.[1] || ''
-            return dateB.localeCompare(dateA) // DESC order
-          }
-          
-          // Default: alphabetical
-          const textA = linkA?.textContent?.trim() || ''
-          const textB = linkB?.textContent?.trim() || ''
-          return textA.localeCompare(textB)
-        })
-        
-        // Reorder DOM
-        childItems.forEach(item => childList.appendChild(item))
-      })
-    }
+  if (process.client) {
+    console.log('[FilterNav] Client Init - DOM enhancements')
 
     // Filter Obsidian + Fix Base paths + Inject BASE pills + Sidebar controls
     const postRenderCleanup = () => {
-      // Sort sidebar DOM (fallback for when SSR sorting doesn't work)
-      sortSidebarDOM()
-      
+      // Skip if we're already modifying DOM (prevents feedback loops)
+      if (isModifyingDOM) return
+      isModifyingDOM = true
+
       // Filter .obsidian items
       document.querySelectorAll('aside a, nav a').forEach(item => {
         const href = item.getAttribute('href') || ''
@@ -429,60 +222,75 @@ export default defineNuxtPlugin((nuxtApp) => {
           if (parent) (parent as HTMLElement).style.display = 'none'
         }
       })
-      
-      // Fix corrupted Base item paths (must run before pills to avoid duplicate active states)
+
+      // Fix corrupted Base item paths (only fixes hrefs now, not active state)
       fixNavigationPaths()
-      
+
       // Inject BASE pills
       injectBasePills()
-      
+
       // Inject sidebar collapse/expand controls
       injectSidebarControls()
-      
+
       // Ensure the folder containing the current page is expanded
       ensureActiveFolderExpanded()
+
+      isModifyingDOM = false
     }
-    
-    // Run after mount with multiple attempts to catch late-rendering navigation
+
+    // Run after mount - single attempt with reasonable delay
     nuxtApp.hook('app:mounted', () => {
-       // Multiple attempts with increasing delays
-       setTimeout(postRenderCleanup, 100)
-       setTimeout(postRenderCleanup, 300)
-       setTimeout(postRenderCleanup, 500)
+      // Single attempt after navigation has rendered
+      setTimeout(postRenderCleanup, 150)
     })
-    
+
     // Also run on route changes
     const router = useRouter()
     router.afterEach(() => {
-      setTimeout(postRenderCleanup, 100)
-      setTimeout(postRenderCleanup, 300)
+      // Clear any pending debounce timer
+      if (observerDebounceTimer) {
+        clearTimeout(observerDebounceTimer)
+        observerDebounceTimer = null
+      }
+      // Single cleanup after route change
+      setTimeout(postRenderCleanup, 150)
     })
     
     // Watch for navigation DOM changes with MutationObserver
     if (typeof MutationObserver !== 'undefined') {
       const observer = new MutationObserver((mutations) => {
-        // Run BASE pill injection on any sidebar change
-        // (folder expand/collapse causes child DOM changes)
+        // Skip if we're the source of the DOM changes
+        if (isModifyingDOM) return
+
+        // Check if sidebar actually changed
         const sidebarChanged = mutations.some(m => {
           const target = m.target as Element
-          return target?.closest?.('aside[data-slot="left"]') || 
+          return target?.closest?.('aside[data-slot="left"]') ||
                  target?.matches?.('aside[data-slot="left"]')
         })
+
         if (sidebarChanged) {
-          // Debounce multiple rapid changes
-          injectBasePills()
+          // Debounce: wait 100ms before acting on changes
+          if (observerDebounceTimer) {
+            clearTimeout(observerDebounceTimer)
+          }
+          observerDebounceTimer = setTimeout(() => {
+            observerDebounceTimer = null
+            // Only inject BASE pills - don't re-sort or manipulate active state
+            injectBasePills()
+          }, 100)
         }
       })
-      
+
       // Start observing once the sidebar exists
       const startObserving = () => {
         const sidebar = document.querySelector('aside[data-slot="left"]')
         if (sidebar) {
-          observer.observe(sidebar, { 
-            childList: true, 
+          observer.observe(sidebar, {
+            childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ['class', 'aria-expanded']
+            attributeFilter: ['aria-expanded'] // Only watch expand/collapse, not class changes
           })
         } else {
           // Retry if sidebar not found yet

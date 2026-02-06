@@ -11,14 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Changelog page using Nuxt UI `ChangelogVersions` component
 - `NUXT_PUBLIC_SITE_URL` environment variable support for RSS feeds on static sites
+- `app.vue` override of Docus to sort and decorate navigation in `useAsyncData` transform
+- Inline base shorthand props (`folder`, `layout`, `sort`, `direction`, `limit`) for `::obsidian-base` MDC component
+
+### Changed
+
+- `sortNavigationItems()` now also decorates items with icons, base-item classes, and folder renames
+- `filter-navigation.ts` plugin reduced to DOM-only enhancements (pills, controls, path fixing)
 
 ### Fixed
 
+- Eliminate 47 hydration mismatches caused by server/client navigation order mismatch
+- Navigation sorting now runs BEFORE component rendering (in `useAsyncData` transform) instead of after (`app:rendered` hook)
+- Icons and `lithos-base-item` class now present in server-rendered HTML for SSR parity
 - Wikilinks in frontmatter now display correctly instead of "(truncated link)"
 - RSS feed now uses correct site URL instead of `localhost` on GitHub/GitLab Pages
 - Header logo link no longer causes double baseURL prefix (e.g., `/jwintz/jwintz/`) when clicked
 - Client-side navigation sorting now works correctly for client-side rendered pages
 - GitLab CI cache now properly preserves `node_modules/` and `.nuxt/` between builds
+- List view "Sort by" dropdown now shows the correct pre-selected value from base config
+- Inline base `file.name` sorting now uses the actual filename stem (preserving date prefixes) instead of the display title
+- Inline base `path` shorthand now recognized as a synonym for `folder`/`source` in `parseBaseYaml`
+- Inline base `order` shorthand (separate from `sort`) now correctly sets sort direction
+- ISO date timestamps in table cells now display as date-only (e.g., `2026-02-05` instead of `2026-02-05T00:00:00.000Z`)
 - GitLab CI now updates existing lithos clone instead of always cloning fresh
 - Root redirect rule no longer duplicates baseURL (fixes `/jwintz/jwintz/home` issue)
 

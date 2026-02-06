@@ -55,6 +55,12 @@ const props = defineProps<{
   properties?: Record<string, PropertyConfig> | string  // Can be JSON string from MDC
   title?: string
   formulas?: any[] | string  // Can be JSON string from MDC
+  // Shorthand props for inline usage (::obsidian-base in markdown)
+  folder?: string          // Shorthand for source + file.inFolder filter
+  layout?: string          // Shorthand for view type: 'table' | 'cards' | 'list'
+  sort?: string            // Shorthand for sort property (e.g., 'title', '-date', 'file.mtime')
+  direction?: string       // Shorthand for sort direction: 'asc' | 'desc'
+  limit?: number | string  // Max results to show
 }>()
 
 // Helper to parse JSON string props
@@ -103,10 +109,50 @@ const baseConfig = computed<BaseConfig>(() => {
       return props.config
     }
   }
+  // Build config from individual props, supporting shorthand inline syntax
+  // Shorthand: folder, layout, sort, direction, limit
+  // Full: source, filters, views, properties, formulas
+  const viewType = (props.layout || 'table') as BaseView['type']
+  const viewName = viewType.charAt(0).toUpperCase() + viewType.slice(1)
+
+  // Build sort config from shorthand props
+  let sortConfig: { property: string; direction: 'ASC' | 'DESC' }[] | undefined
+  if (props.sort) {
+    let sortProp = props.sort
+    let sortDir: 'ASC' | 'DESC' = 'ASC'
+    // Support "-date" syntax for descending
+    if (sortProp.startsWith('-')) {
+      sortProp = sortProp.slice(1)
+      sortDir = 'DESC'
+    }
+    // Explicit direction prop overrides
+    if (props.direction) {
+      sortDir = props.direction.toUpperCase() === 'DESC' ? 'DESC' : 'ASC'
+    }
+    sortConfig = [{ property: sortProp, direction: sortDir }]
+  }
+
+  // Build filters from folder shorthand
+  let filters = parseJsonProp(props.filters, {})
+  if (props.folder && (!filters || Object.keys(filters).length === 0)) {
+    const folderPath = props.folder.startsWith('/') ? props.folder.slice(1) : props.folder
+    filters = `file.inFolder("${folderPath}")`
+  }
+
+  // Build view with sort and limit
+  const parsedViews = parseJsonProp(props.views, null)
+  const limitVal = props.limit ? Number(props.limit) : undefined
+  const views: BaseView[] = parsedViews || [{
+    type: viewType,
+    name: viewName,
+    ...(sortConfig ? { sort: sortConfig } : {}),
+    ...(limitVal ? { limit: limitVal } : {})
+  }]
+
   return {
     source: props.source || '',
-    filters: parseJsonProp(props.filters, {}),
-    views: parseJsonProp(props.views, [{ type: 'table', name: 'Table' }]),
+    filters,
+    views,
     properties: parseJsonProp(props.properties, {}),
     formulas: parseJsonProp(props.formulas, [])
   }
@@ -121,6 +167,65 @@ const isDark = computed(() => colorMode.value === 'dark')
 
 // Interactive table column sorting (user-triggered)
 const userSort = ref<{ column: string; direction: 'asc' | 'desc' } | null>(null)
+
+// List view sort state — initialized from config
+const listSortProperty = ref('')
+const listSortDirection = ref<'asc' | 'desc'>('desc')
+
+// Initialize list sort from config
+watchEffect(() => {
+  const currentView = baseConfig.value.views[activeView.value]
+  if (currentView?.sort?.length && !listSortProperty.value) {
+    // Strip file./note. prefix so the value matches the <option> keys from tableColumns
+    listSortProperty.value = currentView.sort[0].property.replace(/^(note\.|file\.)/, '')
+    listSortDirection.value = currentView.sort[0].direction === 'DESC' ? 'desc' : 'asc'
+  }
+})
+
+// List sort options — derived from tableColumns (reuse column detection)
+const listSortOptions = computed(() => {
+  const cols = tableColumns.value
+  if (!cols.length) return [{ key: 'title', label: 'Title' }]
+  return cols
+})
+
+// Metadata columns to show in list items (exclude title)
+const listMetaColumns = computed(() => {
+  const currentView = baseConfig.value.views[activeView.value]
+  // Use columns from view config if available, otherwise show date + type
+  const cols = currentView?.columns || currentView?.order
+  if (cols?.length) {
+    return cols
+      .filter((k: string) => k !== 'title' && k !== 'name')
+      .slice(0, 3)
+      .map((k: string) => ({
+        key: k.replace(/^(note\.|file\.)/, ''),
+        label: formatLabel(k)
+      }))
+  }
+  // Auto-detect: show date and type if available
+  const auto: { key: string; label: string }[] = []
+  if (notes.value?.[0]) {
+    const sample = notes.value[0]
+    if (getProperty(sample, 'date')) auto.push({ key: 'date', label: 'Date' })
+    if (getProperty(sample, 'type')) auto.push({ key: 'type', label: 'Type' })
+    if (getProperty(sample, 'team')) auto.push({ key: 'team', label: 'Team' })
+  }
+  return auto.slice(0, 3)
+})
+
+function onListSortChange() {
+  if (listSortProperty.value) {
+    userSort.value = { column: listSortProperty.value.replace(/^(note\.|file\.)/, ''), direction: listSortDirection.value }
+  }
+}
+
+function toggleListSortDirection() {
+  listSortDirection.value = listSortDirection.value === 'desc' ? 'asc' : 'desc'
+  if (listSortProperty.value) {
+    userSort.value = { column: listSortProperty.value.replace(/^(note\.|file\.)/, ''), direction: listSortDirection.value }
+  }
+}
 
 // Toggle sort when clicking column header
 function toggleColumnSort(column: string) {
@@ -347,7 +452,15 @@ function evaluatePositiveExpression(trimmed: string, doc: any): boolean {
  * Get the filename from a document (without extension)
  */
 function getFileName(doc: any): string {
-  // Try _file property first (set by shadow asset generation) - more reliable
+  // Try stem first (Nuxt Content's filename slug, preserves date prefixes)
+  if ((doc as any).stem) {
+    const stem = (doc as any).stem
+    // stem may contain path segments (e.g., "blog/2026-01-31-post"), take the last segment
+    const parts = stem.split('/')
+    return parts[parts.length - 1]
+  }
+
+  // Try _file property (set by shadow asset generation) - more reliable for assets
   if (doc._file) {
     const parts = doc._file.split('/')
     const filename = parts[parts.length - 1]
@@ -395,13 +508,14 @@ function getProperty(doc: any, path: string): any {
       case 'extension':
         return doc.extension || doc.meta?.extension || 'md'
       case 'mtime':
-        // Priority: frontmatter fields > internal Nuxt Content fields
-        // Common frontmatter names: updated, modified, date, mtime
+        // Priority: frontmatter updated > modified > filesystem mtime > date > created
+        // Returns the most recent timestamp available
         return doc.updated || doc.meta?.updated ||
                doc.modified || doc.meta?.modified ||
-               doc._mtime || doc.mtime || doc.meta?.mtime ||
+               doc._mtime || (doc.mtime !== null ? doc.mtime : undefined) || doc.meta?.mtime ||
                doc.updatedAt ||
-               doc.date || doc.meta?.date
+               doc.date || doc.meta?.date ||
+               doc.created || doc.meta?.created
       case 'ctime':
         // Priority: frontmatter fields > internal Nuxt Content fields
         // Common frontmatter names: created, date, ctime
@@ -585,6 +699,15 @@ const notes = computed(() => {
         if (aVal < bVal) return -1 * dir
         if (aVal > bVal) return 1 * dir
       }
+      // Tiebreaker: when all sort keys are equal, sort by stem (preserves date-prefixed filenames)
+      // This handles cases like file.mtime where all docs share the same modified date
+      // but have date-prefixed filenames (e.g., 2026-02-05-Title.md)
+      const lastDir = sortConfig[sortConfig.length - 1]?.direction === 'DESC' ? -1 : 1
+      const aStem = (a as any).stem || (a as any).path || ''
+      const bStem = (b as any).stem || (b as any).path || ''
+      if (aStem !== bStem) {
+        return aStem.localeCompare(bStem, undefined, { numeric: true }) * lastDir
+      }
       return 0
     })
   } else {
@@ -699,8 +822,20 @@ function formatValue(value: any): string {
   if (value === null || value === undefined) return '—'
   if (Array.isArray(value)) return value.join(', ')
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return value.split('T')[0] // Show date only, no time
+  }
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
+}
+
+// Format cell value for display in list meta and table cells
+function formatCellValue(value: any): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return value.split('T')[0] // Show date only, no time
+  }
+  return formatValue(value)
 }
 
 // Check if a note is an asset (non-page content like images)
@@ -884,14 +1019,38 @@ const shouldHideHeader = computed(() => {
 
     <!-- List view -->
     <div v-else-if="baseConfig.views[activeView]?.type === 'list'" class="base-list">
+      <!-- Sort control bar for list view -->
+      <div v-if="baseConfig.views[activeView]?.sort?.length || tableColumns.length > 1" class="list-sort-bar">
+        <span class="list-sort-label">Sort by</span>
+        <select v-model="listSortProperty" class="list-sort-select" @change="onListSortChange">
+          <option v-for="col in listSortOptions" :key="col.key" :value="col.key">
+            {{ col.label }}
+          </option>
+        </select>
+        <button class="list-sort-direction" @click="toggleListSortDirection" :title="listSortDirection === 'desc' ? 'Descending' : 'Ascending'">
+          <UIcon :name="listSortDirection === 'desc' ? 'i-lucide-arrow-down-wide-narrow' : 'i-lucide-arrow-up-narrow-wide'" class="w-4 h-4" />
+        </button>
+      </div>
       <div v-for="note in notes" :key="note.path" class="base-list-item">
         <NuxtLink v-if="!isAsset(note)" :to="note.path" class="list-link">
-          <span class="list-title">{{ note.title || note.path?.split('/').pop() }}</span>
-          <span v-if="note.description" class="list-description">{{ note.description }}</span>
+          <div class="list-main">
+            <span class="list-title">{{ note.title || note.path?.split('/').pop() }}</span>
+            <span v-if="note.description" class="list-description">{{ note.description }}</span>
+          </div>
+          <div v-if="listMetaColumns.length" class="list-meta">
+            <span v-for="col in listMetaColumns" :key="col.key" class="list-meta-item">
+              <template v-if="Array.isArray(getProperty(note, col.key))">
+                <UBadge v-for="item in getProperty(note, col.key)" :key="item" variant="subtle" size="xs">#{{ item }}</UBadge>
+              </template>
+              <template v-else>{{ formatCellValue(getProperty(note, col.key)) }}</template>
+            </span>
+          </div>
         </NuxtLink>
         <div v-else class="list-link cursor-default">
-          <span class="list-title">{{ note.title || note.path?.split('/').pop() }}</span>
-          <span v-if="note.description" class="list-description">{{ note.description }}</span>
+          <div class="list-main">
+            <span class="list-title">{{ note.title || note.path?.split('/').pop() }}</span>
+            <span v-if="note.description" class="list-description">{{ note.description }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1096,15 +1255,72 @@ details[open] > .base-header .base-chevron {
 .base-list-item:last-child { border-bottom: none; }
 .list-link {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1rem;
   padding: 0.75rem 1rem;
   text-decoration: none;
   transition: background 0.15s ease;
 }
 .list-link:hover { background: var(--ui-bg-muted); }
+.list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
 .list-title { font-weight: 500; color: var(--ui-text); }
 .list-description { font-size: 0.875rem; color: var(--ui-text-muted); }
+.list-meta {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: var(--ui-text-muted);
+}
+.list-meta-item {
+  white-space: nowrap;
+}
+
+/* Sort control bar */
+.list-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--ui-border);
+  font-size: 0.8125rem;
+  color: var(--ui-text-muted);
+}
+.list-sort-label {
+  font-weight: 500;
+}
+.list-sort-select {
+  appearance: auto;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--ui-text);
+  cursor: pointer;
+}
+.list-sort-select:hover { border-color: var(--ui-primary); }
+.list-sort-direction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border: 1px solid var(--ui-border);
+  border-radius: 0.25rem;
+  background: var(--ui-bg);
+  cursor: pointer;
+  color: var(--ui-text-muted);
+  transition: all 0.15s ease;
+}
+.list-sort-direction:hover { border-color: var(--ui-primary); color: var(--ui-text); }
 
 .base-footer {
   padding: 0.5rem 1rem;

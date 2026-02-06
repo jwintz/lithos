@@ -88,9 +88,39 @@ formulas:
 
 The module exposes the `::obsidian-base` MDC component for rendering frames.
 
+### Full Syntax
+
+Pass structured configuration via individual props:
+
 ```markdown
 ::obsidian-base{source="Projects" views='[{"type":"table"}]'}
 ::
 ```
 
-(Ideally, use the `.base` file format which `obsidian-transform` converts into this component automatically).
+### Shorthand Syntax
+
+For inline use in markdown pages, a simplified syntax is available:
+
+```markdown
+::obsidian-base
+---
+folder: /Blog
+layout: list
+sort: date
+direction: desc
+limit: 10
+---
+::
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `folder` | `string` | Folder to query (creates a `file.inFolder()` filter) |
+| `layout` | `string` | View type: `table`, `cards`, or `list` |
+| `sort` | `string` | Property to sort by (prefix with `-` for descending) |
+| `direction` | `string` | Sort direction: `asc` or `desc` |
+| `limit` | `number` | Maximum number of results |
+
+The shorthand props are translated into the full `BaseConfig` structure internally.
+
+Standalone `.base` files use the full YAML format and are automatically converted into this component by the `obsidian-bases` module.

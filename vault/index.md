@@ -23,23 +23,19 @@ links:
 ---
 ::
 
-::u-page-grid{class="lg:grid-cols-3 max-w-(--ui-container) mx-auto px-4 pb-16"}
+::div{class="max-w-(--ui-container) mx-auto px-4 pb-16"}
+![Lithos Documentation Interface](/_raw/assets/Landing-1.png){.w-full .rounded-xl .shadow-2xl .ring-1 .ring-gray-200 .dark:ring-white/10}
+::
 
-<!-- Row 1: Native Syntax (2/3) + Graph (1/3) -->
+::u-page-grid{class="lg:grid-cols-3 max-w-(--ui-container) mx-auto px-4 pb-24"}
+
 :::u-page-card
 ---
 spotlight: true
 class: col-span-3 lg:col-span-2
 to: /features/obsidian-syntax
+icon: i-lucide-file-text
 ---
-::::noir-image
----
-src: https://obsidian.md/images/screenshot-1.0-hero-combo.png
-alt: Obsidian note-taking with bidirectional links and graph view
-height: 240px
----
-::::
-
 #title
 Obsidian Native Syntax
 
@@ -52,15 +48,8 @@ Write with **[[wikilinks]]**, embed notes with `![[transclusion]]`, and use call
 spotlight: true
 class: col-span-3 lg:col-span-1
 to: /features/graph
+icon: i-lucide-network
 ---
-::::noir-image
----
-src: https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=800&q=80
-alt: Interactive knowledge graph visualization
-height: 240px
----
-::::
-
 #title
 Interactive Graph View
 
@@ -68,21 +57,13 @@ Interactive Graph View
 Explore your knowledge base through a force-directed **graph visualization**. Navigate your vault spatially with hover highlighting and click-to-navigate.
 :::
 
-<!-- Row 2: Bases (1/3) + Daily Notes & Search (2/3) -->
 :::u-page-card
 ---
 spotlight: true
 class: col-span-3 lg:col-span-1
 to: /features/bases
+icon: i-lucide-database
 ---
-::::noir-image
----
-src: https://publish-01.obsidian.md/access/f786db9fac45774fa4f0d8112e232d67/Attachments/bases-noshadow.png
-alt: Structured data views with tables, cards and filters
-height: 240px
----
-::::
-
 #title
 Structured Databases
 
@@ -95,44 +76,27 @@ Turn folders into queryable databases with **[[Obsidian Bases]]**. Visualize you
 spotlight: true
 class: col-span-3 lg:col-span-2
 to: /features/daily-notes
+icon: i-lucide-search
 ---
-::::noir-image
----
-src: https://docus.dev/landing/light/command-menu.png
-dark-src: https://docus.dev/landing/dark/command-menu.png
-alt: Full-text search and command palette for documentation navigation
-height: 240px
----
-::::
-
 #title
 Daily Notes & Search
 
 #description
-Transform chronological daily notes into a navigable blog archive with date-based routing and RSS feeds. Built-in **command palette** search lets readers find any page instantly. Full-text search, keyboard shortcuts, and automatic navigation from your folder structure.
+Transform chronological daily notes into a navigable blog archive with date-based routing and RSS feeds. Built-in **command palette** search lets readers find any page instantly.
 :::
 
-<!-- Row 3: MCP (2/3) + Skills (1/3) -->
 :::u-page-card
 ---
 spotlight: true
 class: col-span-3 lg:col-span-2
 to: /agentic/ai
+icon: i-lucide-bot
 ---
-::::noir-image
----
-src: https://docus.dev/landing/light/mcp.svg
-dark-src: https://docus.dev/landing/dark/mcp.svg
-alt: AI-powered documentation with Model Context Protocol
-height: 240px
----
-::::
-
 #title
 AI-Ready with Native MCP
 
 #description
-A built-in **[[MCP Server]]** exposes your documentation to AI agents. Claude, Cursor, VS Code, and other MCP-compatible tools can read, search, and reason about your knowledge base. Automatic `llms.txt` generation included.
+A built-in **[[MCP Server]]** exposes your documentation to AI agents. Claude, Cursor, VS Code, and other MCP-compatible tools can read, search, and reason about your knowledge base.
 :::
 
 :::u-page-card
@@ -140,15 +104,8 @@ A built-in **[[MCP Server]]** exposes your documentation to AI agents. Claude, C
 spotlight: true
 class: col-span-3 lg:col-span-1
 to: /agentic/skills
+icon: i-lucide-zap
 ---
-::::noir-image
----
-src: https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=800&q=80
-alt: AI agent skills for extending capabilities
-height: 240px
----
-::::
-
 #title
 Agent Skills
 
@@ -156,21 +113,13 @@ Agent Skills
 Extend AI capabilities with specialized **skills** for documentation writing, landing pages, and vault management. Agentic workflows that understand your project.
 :::
 
-<!-- Row 4: SSG (1/3) + Docus (2/3) -->
 :::u-page-card
 ---
 spotlight: true
 class: col-span-3 lg:col-span-1
 to: /guide/deployment
+icon: i-lucide-rocket
 ---
-::::noir-image
----
-src: https://nuxt.com/__og-image__/static/docs/4.x/api/commands/generate/og.png
-alt: Static site generation and deployment
-height: 240px
----
-::::
-
 #title
 Static Site Generation
 
@@ -184,20 +133,14 @@ spotlight: true
 class: col-span-3 lg:col-span-2
 to: https://docus.dev
 external: true
+icon: i-lucide-cpu
 ---
-::::noir-image
----
-src: https://nuxt.com/__og-image__/static/docs/4.x/getting-started/introduction/og.png
-alt: Docus documentation framework
-height: 240px
----
-::::
-
 #title
 Powered by Docus
 
 #description
-Built on **Docus v5** — the Nuxt-based documentation framework. Full Nuxt ecosystem access, MDC component syntax, Nuxt UI design system, and production-grade performance. Your vault becomes a first-class web application.
+Built on **Docus v5** — the Nuxt-based documentation framework. Full Nuxt ecosystem access, MDC component syntax, Nuxt UI design system, and production-grade performance.
 :::
 
 ::
+
