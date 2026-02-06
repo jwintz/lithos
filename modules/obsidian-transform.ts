@@ -769,10 +769,12 @@ function transformInlineBases(content: string): string {
   return content.replace(baseBlockRegex, (match, yamlContent) => {
     try {
       const config = parseBaseYaml(yamlContent.trim())
-      const filtersJson = JSON.stringify(config.filters || {})
-      const viewsJson = JSON.stringify(config.views || [])
-      const propsJson = JSON.stringify(config.properties || {})
-      return `::obsidian-base{source="${escapeMdcAttr(config.source || '')}" title="${escapeMdcAttr(config.name || '')}" filters='${filtersJson.replace(/'/g, '&#39;')}' views='${viewsJson.replace(/'/g, '&#39;')}' properties='${propsJson.replace(/'/g, '&#39;')}'}\n::`
+      // Use base64 encoding to avoid MDC attribute quoting issues.
+      // Filter expressions contain double quotes (e.g. file.inFolder("Assets"))
+      // which break JSON-in-attribute parsing regardless of quote style.
+      const configJson = JSON.stringify(config)
+      const configBase64 = Buffer.from(configJson).toString('base64')
+      return `::obsidian-base{configBase64="${configBase64}"}\n::`
     } catch (e) {
       return match
     }

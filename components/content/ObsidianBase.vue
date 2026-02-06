@@ -604,23 +604,16 @@ const { data: rawNotes, status, refresh } = await useAsyncData(
       return true
     })
 
-    // Filter by source folder if specified
-    if (source) {
+    // Filter by source folder if specified, but only when
+    // there are no view-level filters (which are the authoritative spec).
+    // In Obsidian Bases, "path:" is contextual scope; when views define
+    // their own filters (e.g. file.inFolder("Assets")), the source
+    // should not act as an additional pre-filter.
+    if (source && !currentView?.filters) {
       const sourcePath = source.startsWith('/') ? source : `/${source}`
       filtered = filtered.filter(doc =>
         doc.path?.toLowerCase().includes(sourcePath.toLowerCase().replace(/\/$/, ''))
       )
-    }
-
-    // Debug log for assets
-    if (baseConfig.value.filters && JSON.stringify(baseConfig.value.filters).includes('Assets')) {
-       console.log('[ObsidianBase] filtered docs for Assets:', filtered.length)
-       if (filtered.length === 0) {
-          // Fallback: if we found 0 docs but expected assets, try to manually query them again if they weren't in the initial mix
-          if (assetDocs.length === 0) {
-             console.log('[ObsidianBase] Asset docs were empty, re-verifying...')
-          }
-       }
     }
 
     // Apply global filters

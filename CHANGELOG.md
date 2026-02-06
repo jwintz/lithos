@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Inline bases (` ```base ` code blocks in markdown) failing to render due to double quotes in filter expressions (e.g. `file.inFolder("Assets")`) breaking MDC attribute parsing; now uses base64-encoded config to avoid quoting issues
+- Inline bases with view-level filters returning no results because the `path:` field was incorrectly used as a source pre-filter, excluding docs outside that path; source pre-filter is now skipped when views define their own filters
+
 ### Added
 
 - Changelog page using Nuxt UI `ChangelogVersions` component
