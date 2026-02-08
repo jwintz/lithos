@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Direct URL access (cold load) on static hosts returning 404 due to trailing slash mismatch between SSR and client hydration; `route.path` is now normalized before use in `useAsyncData` keys and `queryCollection` queries
+- `lithos cleanup` deleting the `public/` source directory (favicons, logos) alongside build artifacts
 - RSS feed `<content:encoded>` now contains properly formatted HTML instead of plain text; AST is converted to HTML preserving tags, attributes, and structure
 - Inline bases (` ```base ` code blocks in markdown) failing to render due to double quotes in filter expressions (e.g. `file.inFolder("Assets")`) breaking MDC attribute parsing; now uses base64-encoded config to avoid quoting issues
 - Inline bases with view-level filters returning no results because the `path:` field was incorrectly used as a source pre-filter, excluding docs outside that path; source pre-filter is now skipped when views define their own filters

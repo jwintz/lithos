@@ -23,10 +23,18 @@ const appConfig = useAppConfig()
 const navigation = inject<Ref<ContentNavigationItem[]>>('navigation')
 const runtimeConfig = useRuntimeConfig()
 
+// Normalize path: strip trailing slash to ensure SSR/client key parity.
+// Static hosts (GitHub Pages, GitLab Pages) redirect /path to /path/,
+// causing route.path to differ between SSR and client hydration.
+const normalizedPath = computed(() => {
+  const p = route.path
+  return p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p
+})
+
 const collectionName = computed(() => isEnabled.value ? `docs_${locale.value}` : 'docs')
 
 const [{ data: page }] = await Promise.all([
-  useAsyncData(kebabCase(route.path), () => queryCollection(collectionName.value as keyof Collections).path(route.path).first() as Promise<DocsCollectionItem>),
+  useAsyncData(kebabCase(normalizedPath.value), () => queryCollection(collectionName.value as keyof Collections).path(normalizedPath.value).first() as Promise<DocsCollectionItem>),
     // Surround fetched client-side from navigation to respect custom sorting
 ])
 
@@ -64,7 +72,7 @@ const surroundPaths = computed(() => {
 
 // Fetch full data for surround items (to get descriptions for better presentation)
 const { data: surround } = await useAsyncData(
-  `${kebabCase(route.path)}-surround-resolved`,
+  `${kebabCase(normalizedPath.value)}-surround-resolved`,
   async () => {
     if (!surroundPaths.value) return null
     
@@ -108,7 +116,7 @@ const isBaseFile = computed(() => {
 
 // Daily note navigation (prev/next by date)
 const { data: dailyNoteSurround } = await useAsyncData(
-  `daily-note-surround-${kebabCase(route.path)}`,
+  `daily-note-surround-${kebabCase(normalizedPath.value)}`,
   async () => {
     if (!isDailyNote.value) return null
 

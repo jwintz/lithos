@@ -73,7 +73,6 @@ if (command === 'cleanup') {
     '.data',
     '.nuxt',
     'dist',
-    'public',
     'node_modules/.cache/nuxt',
     'node_modules/.vite',
   ]
