@@ -305,64 +305,51 @@ _file: "${relativePath}"
       
       // STRICT FILTER: Ignore non-markdown and garbage files immediately
       // We also check for .lithosignore in the content root
-      let ignoredPatterns = [
+      let ignoredSubstrings = [
         '/.git/', '/.obsidian/', '/.trash/', '/.data/', '/.claude/', '/node_modules/',
         '/Vault/Vault/', '/Academic/Academic/', // Circular symlink protection
-        '/.DS_Store/'
+        '/.DS_Store/',
+        '/Template/' // Exclude Template folder usually? existing code didn't have it.
       ]
+      
+      let ignoredSegments: string[] = []
       
       try {
           // Attempt to read .lithosignore from content dir
-          // We can't easily access the vault path here directly without context, but we can guess
-          // Or we can rely on file.path being absolute
-          // For now, let's hardcode a read from the project root/content/.lithosignore if possible
-          // But reading file synchronously in hook is risky for perf?
-          // Better: we can assume standard locations.
-          // However, to keep it simple and robust, let's just use strict defaults + user request.
-          // User requested .lithosignore support.
-          // We'll read it ONCE at setup or try to read here if cached.
-          // Actually, let's just read it here safely.
           const { readFileSync, existsSync } = require('fs')
           const { join } = require('path')
           
-          // Try to find .lithosignore in parent directories of the file?
-          // Or just assume it's in the root of the "content" or "vault" folder.
-          // Since we don't know the exact vault root easily, let's skip complex resolution
-          // and just check standard common paths if they exist
-          
-          // For this specific environment:
-          // We can try to read from where `content` points to.
-          // But `file.path` is absolute.
-          
-          // Let's implement a simple check: if .lithosignore exists in same dir or parents... 
-          // Too slow.
-          
-          // Simplest: Check if the file path contains any pattern from a hardcoded list for now, 
-          // plus verify if we can read one from the process CWD.
           const cwdIgnorePath = join(process.cwd(), 'content', '.lithosignore')
           if (existsSync(cwdIgnorePath)) {
              const ignoreContent = readFileSync(cwdIgnorePath, 'utf8')
              const lines = ignoreContent.split('\n').map((l: string) => l.trim()).filter((l: string) => l && !l.startsWith('#'))
-             ignoredPatterns = [...ignoredPatterns, ...lines]
+             ignoredSegments = lines
           }
       } catch (e) {}
       
       const filePathStr = file.path || file._file || ''
+      const filePathSegments = filePathStr.split('/')
       
-      // Update shared ref for other hooks
-      ignoredPatternsRef = ignoredPatterns
+      // Update shared ref for other hooks (just approximate for regex)
+      ignoredPatternsRef = [...ignoredSubstrings, ...ignoredSegments]
 
-      // Explicit debug for AGENTS.md
-      // if (filePathStr.includes('AGENTS.md')) {
-      //    console.log(`[obsidian-transform] Processing AGENTS.md. Patterns: ${JSON.stringify(ignoredPatterns)}`)
-      // }
 
-      if (ignoredPatterns.some(p => filePathStr.includes(p))) {
-        console.log(`[obsidian-transform] Ignoring excluded path: ${filePathStr}`)
-        file.body = '' // Clear body to save memory
-        // We really want to skip it.
+      // Check substrings
+      if (ignoredSubstrings.some(p => filePathStr.includes(p))) {
+        // console.log(`[obsidian-transform] Ignoring excluded path (substring): ${filePathStr}`)
+        file.body = ''
         return
       }
+      
+      // Check segments (exact match required for directory or filename)
+      if (ignoredSegments.some(s => filePathSegments.includes(s))) {
+        // console.log(`[obsidian-transform] Ignoring excluded path (segment): ${filePathStr}`)
+        file.body = ''
+        return
+      }
+
+      // Check wildcards in segments? (Simple glob support if needed)
+      // For now, assume .lithosignore contains exact names.
 
       if (ext !== '.md' && ext !== 'md') return
 
@@ -509,7 +496,10 @@ _file: "${relativePath}"
       }
       
       // Filter ignored files if they slipped through
-      if (filePath && ignoredPatternsRef.some(p => new RegExp(p).test(filePath))) {
+      if (filePath && ignoredPatternsRef.some(p => {
+          if (p.includes('/')) return filePath.includes(p)
+          return filePath.split('/').includes(p)
+      })) {
          console.log(`[obsidian-transform] Force removing ignored file in afterParse: ${filePath}`)
          file._ignore = true 
          file.draft = true
@@ -553,7 +543,10 @@ _file: "${relativePath}"
        const filePath = doc._source || doc._file || doc.path || ''
        
        // STRICT FILTER
-       if (filePath && ignoredPatternsRef.some(p => new RegExp(p).test(filePath))) {
+       if (filePath && ignoredPatternsRef.some(p => {
+           if (p.includes('/')) return filePath.includes(p)
+           return filePath.split('/').includes(p)
+       })) {
            console.log(`[obsidian-transform] BLOCKING ignored file in beforeInsert: ${doc._id} (${filePath})`)
            doc._ignore = true
            doc.draft = true // Hide from query?

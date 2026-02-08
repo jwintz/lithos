@@ -5,7 +5,6 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 
 const { options } = useNuxt()
-const cwd = joinURL(options.rootDir, 'content')
 
 // .lithosignore parsing
 let lithosIgnorePatterns: string[] = []
@@ -124,11 +123,18 @@ export default defineContentConfig({
   collections: {
     docs: defineCollection({
       type: 'page',
-      source: {
-        cwd,
-        include: '**/*.{md,base}', // Include markdown and base files
-        exclude: excludePatterns,
-      },
+      source: [
+        {
+          cwd: resolve(options.rootDir, 'content'),
+          include: '**/*.{md,base}',
+          exclude: excludePatterns,
+        },
+        {
+          cwd: resolve(options.rootDir, 'vault'),
+          include: '**/*.{md,base}',
+          exclude: excludePatterns,
+        }
+      ],
       schema: createDocsSchema(),
     }),
     assets: defineCollection({
