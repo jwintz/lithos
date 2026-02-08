@@ -214,12 +214,19 @@ export default defineNuxtConfig({
     '~/assets/css/obsidian.css'
   ],
 
-  // Component structure
+  // Component structure - includes vault components for extensibility
   components: {
     dirs: [
       { path: '~/components', pathPrefix: false },
       { path: '~/components/content', pathPrefix: false, global: true },
-      { path: '~/components/prose', pathPrefix: false }
+      { path: '~/components/prose', pathPrefix: false },
+      // Vault-level components for extensibility (external vault can add custom components)
+      ...(absoluteVaultPath && existsSync(join(absoluteVaultPath, 'components')) 
+        ? [{ path: join(absoluteVaultPath, 'components'), pathPrefix: false }] 
+        : []),
+      ...(absoluteVaultPath && existsSync(join(absoluteVaultPath, 'components', 'content'))
+        ? [{ path: join(absoluteVaultPath, 'components', 'content'), pathPrefix: false, global: true }]
+        : [])
     ]
   },
 
@@ -306,7 +313,9 @@ export default defineNuxtConfig({
       crawlLinks: true,
       failOnError: false,
       concurrency: 1,
-      interval: 100
+      interval: 100,
+      // Generate /about/index.html instead of /about.html for proper static hosting (GitLab Pages, etc)
+      autoSubfolderIndex: true
     }
   },
 

@@ -218,28 +218,36 @@ vault/
 │   ├── Posts.base    (order: 3.1)
 │   └── Projects.base (order: 3.2)
 ├── Blog/
-│   ├── 2026-01-20-Sprint.md   (order: 4.1)
-│   └── 2026-01-26-Research.md (order: 4.2)
+│   ├── 2026-02-08-Tutorial.md   (order: 4.0)  ← newest
+│   ├── 2026-02-05-Release.md    (order: 4.1)
+│   ├── 2026-01-26-Research.md   (order: 4.2)
+│   └── 2026-01-20-Sprint.md     (order: 4.3)  ← oldest
 ├── Projects/
 │   ├── ProjectA.md   (order: 5.1)
 │   └── ProjectB.md   (order: 5.2)
 └── Colophon.md       (order: 7)
 ```
 
+**Blog Post Ordering:** Blog posts typically use **reverse chronological order** (newest first = lowest fractional number). When adding a new post:
+1. Check the current lowest blog order (e.g., `4.1`)
+2. Assign the new post a lower number (e.g., `4.0`)
+3. For subsequent posts, continue decrementing or use lower decimals (e.g., `3.95`)
+
 Each file includes complete frontmatter:
 
 ```yaml
 ---
-title: Sprint Log
-description: Week 3 development sprint on the monitoring dashboard.
-date: 2026-01-20
+title: Tutorial Post
+description: A guide to extending the platform.
+date: 2026-02-08
 tags:
-  - frontend
-  - architecture
-order: 4.1
-icon: i-lucide-scroll
+  - tutorial
+  - components
+order: 4.0
+icon: i-lucide-puzzle
 navigation:
-  icon: i-lucide-scroll
+  icon: i-lucide-puzzle
+  order: 4.0
 ---
 ```
 
