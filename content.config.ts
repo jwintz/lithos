@@ -123,18 +123,37 @@ export default defineContentConfig({
   collections: {
     docs: defineCollection({
       type: 'page',
-      source: [
-        {
-          cwd: resolve(options.rootDir, 'content'),
-          include: '**/*.{md,base}',
-          exclude: excludePatterns,
-        },
-        {
-          cwd: resolve(options.rootDir, 'vault'),
-          include: '**/*.{md,base}',
-          exclude: excludePatterns,
+      source: (() => {
+        // When using an external vault via --vault, only include content/ (the external vault)
+        // When no --vault (developing Lithos itself), include both content/ and vault/
+        const args = process.argv
+        const vaultArgIndex = args.findIndex(arg => arg.startsWith('--vault='))
+        const customVaultPath = process.env.LITHOS_VAULT_PATH || (vaultArgIndex !== -1 ? args[vaultArgIndex].split('=')[1] : null)
+
+        if (customVaultPath) {
+          // External vault mode: only include content/
+          return {
+            cwd: resolve(options.rootDir, 'content'),
+            include: '**/*.{md,base}',
+            exclude: excludePatterns,
+          }
         }
-      ],
+
+        // Default mode (developing Lithos): include both content/ and vault/
+        // Note: content/ should be symlinked to vault/ for Lithos's own site
+        return [
+          {
+            cwd: resolve(options.rootDir, 'content'),
+            include: '**/*.{md,base}',
+            exclude: excludePatterns,
+          },
+          {
+            cwd: resolve(options.rootDir, 'vault'),
+            include: '**/*.{md,base}',
+            exclude: excludePatterns,
+          }
+        ]
+      })(),
       schema: createDocsSchema(),
     }),
     assets: defineCollection({
