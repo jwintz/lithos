@@ -30,18 +30,27 @@ export default defineNuxtPlugin((nuxtApp) => {
     const sidebar = document.querySelector('aside[data-slot="left"]')
     if (!sidebar) return
 
+    const runtimeConfig = useRuntimeConfig()
+    const baseURL = runtimeConfig.app.baseURL || '/'
+
+    // Helper to prepend baseURL
+    const withBase = (path: string) => {
+      if (baseURL === '/') return path
+      return `${baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+    }
+
     // Map of item names to correct paths (for items with corrupted navigation data)
     const pathMap: Record<string, string> = {
       // Top-level items
-      'Home': '/home',
-      'About': '/about',
-      'Colophon': '/colophon',
+      'Home': withBase('/home'),
+      'About': withBase('/about'),
+      'Colophon': withBase('/colophon'),
       // Base items
-      'Posts': '/bases/posts',
-      'Projects': '/bases/projects',
-      'Research': '/bases/research',
-      'Assets': '/bases/assets',
-      'Avatars': '/bases/avatars'
+      'Posts': withBase('/bases/posts'),
+      'Projects': withBase('/bases/projects'),
+      'Research': withBase('/bases/research'),
+      'Assets': withBase('/bases/assets'),
+      'Avatars': withBase('/bases/avatars')
     }
 
     // Fix all links that might have wrong paths - ONLY fix hrefs, don't touch active state

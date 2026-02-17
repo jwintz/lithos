@@ -123,6 +123,7 @@ onUnmounted(() => {
     class="header-logo cursor-pointer"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
+    @click="navigateTo('/')"
   >
     <ClientOnly>
       <img

@@ -26,9 +26,24 @@ const runtimeConfig = useRuntimeConfig()
 // Normalize path: strip trailing slash to ensure SSR/client key parity.
 // Static hosts (GitHub Pages, GitLab Pages) redirect /path to /path/,
 // causing route.path to differ between SSR and client hydration.
+// We also strip the baseURL for content querying if it's set.
 const normalizedPath = computed(() => {
-  const p = route.path
-  return p.length > 1 && p.endsWith('/') ? p.slice(0, -1) : p
+  const baseURL = runtimeConfig.app.baseURL || '/'
+  let p = route.path
+  
+  // Strip baseURL from path for content querying
+  if (baseURL !== '/') {
+    const cleanBase = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL
+    if (p.startsWith(cleanBase)) {
+      p = p.slice(cleanBase.length)
+    }
+  }
+  
+  // Ensure path starts with / and has no trailing slash (unless it's just /)
+  if (!p.startsWith('/')) p = '/' + p
+  if (p.length > 1 && p.endsWith('/')) p = p.slice(0, -1)
+  
+  return p
 })
 
 const collectionName = computed(() => isEnabled.value ? `docs_${locale.value}` : 'docs')
