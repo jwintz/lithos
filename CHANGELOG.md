@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Wikilinks, transclusions, and HTML asset paths in markdown are now correctly prefixed with `baseURL` for subpath deployments (GitLab Pages) by injecting `baseURL` into `obsidian-transform.ts`
+- `NoirImage.vue` now correctly handles `baseURL` for image sources, fixing broken images on landing pages in subpath deployments
 - Navigation links in sidebar now respect `baseURL` in subpath deployments (e.g., GitHub Pages) by using a normalized path helper in `filter-navigation.ts`
 - Header logo now uses `UHeader`'s default `ULink` wrapping to avoid nested links and hydration mismatches, while correctly resolving the home path with `baseURL`
 - Redirect logic in `bin/lithos.mjs` now robustly joins `baseURL` with `/home` for projects without a landing page

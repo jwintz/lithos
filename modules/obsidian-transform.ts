@@ -149,6 +149,9 @@ export default defineNuxtModule({
 
     const resolver = createResolver(import.meta.url)
 
+    // Retrieve baseURL for path transformations
+    const baseURL = nuxt.options.app.baseURL || '/'
+
     // Permalink map: filename (lowercase) → full path
     // Use a limited-size map to prevent unbounded growth
     // Exporting it for use in obsidian-graph
@@ -421,7 +424,7 @@ _file: "${relativePath}"
       // 4. Transform Embeds
       if (options.embeds) {
         try {
-          content = transformEmbeds(content, permalinkMap)
+          content = transformEmbeds(content, permalinkMap, baseURL)
         } catch (e) {
           console.warn(`[obsidian-transform] Failed to transform embeds in ${filePath}:`, e)
         }
@@ -430,7 +433,7 @@ _file: "${relativePath}"
       // 5. Transform Wikilinks
       if (options.wikilinks) {
         try {
-          content = transformWikilinks(content, permalinkMap)
+          content = transformWikilinks(content, permalinkMap, baseURL)
         } catch (e) {
           console.warn(`[obsidian-transform] Failed to transform wikilinks in ${filePath}:`, e)
         }
@@ -448,7 +451,7 @@ _file: "${relativePath}"
       // 7. Rewrite relative asset paths in inline HTML
       // Transform: <img src="Assets/..." -> <img src="/_raw/Assets/...
       try {
-        content = transformHtmlAssetPaths(content)
+        content = transformHtmlAssetPaths(content, baseURL)
       } catch (e) {
         console.warn(`[obsidian-transform] Failed to transform HTML asset paths in ${filePath}:`, e)
       }
@@ -614,8 +617,15 @@ function extractWikilinkTargets(content: string): string[] {
   return targets
 }
 
-function transformWikilinks(content: string, permalinkMap: Map<string, string>): string {
+function transformWikilinks(content: string, permalinkMap: Map<string, string>, baseURL: string = '/'): string {
   const wikilinkRegex = /\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g
+  
+  // Helper to join paths with baseURL
+  const withBase = (path: string) => {
+    if (baseURL === '/') return path
+    return `${baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+  }
+
   return content.replace(wikilinkRegex, (match, target, section, alias) => {
     const targetLower = target.trim().toLowerCase()
     let href = ''
@@ -629,14 +639,14 @@ function transformWikilinks(content: string, permalinkMap: Map<string, string>):
        
        const parts = clean.split(/[/\\]/)
        const cleanParts = parts.map(p => p.replace(/^\d+\./, '').toLowerCase())
-       href = '/' + cleanParts.filter(Boolean).join('/')
+       href = withBase('/' + cleanParts.filter(Boolean).join('/'))
     } else {
        // Fallback: Preserves slashes for path-based links
        const parts = target.trim().split(/[/\\]/)
        const cleanParts = parts.map((p: string) => p.toLowerCase()
           .replace(/\s+/g, '-')
           .replace(/[^\w\-]/g, ''))
-       href = '/' + cleanParts.filter(Boolean).join('/')
+       href = withBase('/' + cleanParts.filter(Boolean).join('/'))
     }
 
     if (section) {
@@ -649,8 +659,15 @@ function transformWikilinks(content: string, permalinkMap: Map<string, string>):
   })
 }
 
-function transformEmbeds(content: string, permalinkMap: Map<string, string>): string {
+function transformEmbeds(content: string, permalinkMap: Map<string, string>, baseURL: string = '/'): string {
   const embedRegex = /!\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g
+  
+  // Helper to join paths with baseURL
+  const withBase = (path: string) => {
+    if (baseURL === '/') return path
+    return `${baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+  }
+
   return content.replace(embedRegex, (match, target, section, alias) => {
     const targetTrimmed = target.trim()
     
@@ -670,7 +687,7 @@ function transformEmbeds(content: string, permalinkMap: Map<string, string>): st
              // transformHtmlAssetPaths expects relative or absolute.
              // If we give it "/_raw/Assets/Avatar1.jpeg", it will skip it (correctly).
              // So let's output the full correct path.
-             src = '/_raw/' + mappedPath
+             src = withBase('/_raw/' + mappedPath)
         } else {
              // Fallback to name, let transformHtmlAssetPaths try (though it handles relative)
              console.warn(`[obsidian-transform] Image not found in map: ${targetTrimmed}`)
@@ -795,10 +812,16 @@ function transformAbcNotation(content: string): string {
  * 
  * Excludes external URLs (http://, https://, //, data:, blob:)
  */
-function transformHtmlAssetPaths(content: string): string {
+function transformHtmlAssetPaths(content: string, baseURL: string = '/'): string {
   // Match src attributes in img, video, source, embed, audio tags
   const srcAttrRegex = /<(img|video|source|embed|audio|picture)([^>]*?)src\s*=\s*["']([^"']+)["']([^>]*?)>/gi
   
+  // Helper to join paths with baseURL
+  const withBase = (path: string) => {
+    if (baseURL === '/') return path
+    return `${baseURL.replace(/\/$/, '')}/${path.replace(/^\//, '')}`
+  }
+
   return content.replace(srcAttrRegex, (match, tag, before, srcValue, after) => {
     // Skip external URLs and absolute paths that don't need raw prefix
     if (srcValue.startsWith('http://') ||
@@ -809,21 +832,36 @@ function transformHtmlAssetPaths(content: string): string {
         srcValue.startsWith('/_raw/') ||
         srcValue.startsWith('/_nuxt/') ||
         srcValue.startsWith('/_fonts/')) {
+      
+      // Even for these, if it starts with /_raw we might need to prepend baseURL if it's not already there
+      if (srcValue.startsWith('/_raw/') && baseURL !== '/') {
+        const cleanBase = baseURL.replace(/\/$/, '')
+        if (!srcValue.startsWith(cleanBase)) {
+           const newSrc = withBase(srcValue)
+           return `<${tag}${before}src="${newSrc}"${after}>`
+        }
+      }
+      
       return match
     }
     
     // Skip absolute paths that start with / but aren't expected to be raw
     if (srcValue.startsWith('/') && !srcValue.startsWith('/_raw')) {
-      // Could be a public asset - leave as is
+      // Could be a public asset - leave as is (or prepend baseURL if missing)
+      const cleanBase = baseURL.replace(/\/$/, '')
+      if (baseURL !== '/' && !srcValue.startsWith(cleanBase)) {
+        const newSrc = withBase(srcValue)
+        return `<${tag}${before}src="${newSrc}"${after}>`
+      }
       return match
     }
     
     // Rewrite relative paths to use /_raw/
     let newSrc = srcValue
     if (srcValue.startsWith('./')) {
-      newSrc = '/_raw/' + srcValue.substring(2)
+      newSrc = withBase('/_raw/' + srcValue.substring(2))
     } else {
-      newSrc = '/_raw/' + srcValue
+      newSrc = withBase('/_raw/' + srcValue)
     }
     
     return `<${tag}${before}src="${newSrc}"${after}>`

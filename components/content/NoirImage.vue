@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { withBase } from 'ufo'
+
 /**
  * NoirImage - Landing page image with neo-grotesque noir effects
  *
@@ -21,11 +23,15 @@ const props = defineProps<{
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 
+const runtimeConfig = useRuntimeConfig()
+const baseURL = runtimeConfig.app.baseURL || '/'
+
 const imageSrc = computed(() => {
-  if (isDark.value && props.darkSrc) {
-    return props.darkSrc
+  const rawSrc = isDark.value && props.darkSrc ? props.darkSrc : props.src
+  if (rawSrc?.startsWith('/') && !rawSrc.startsWith('//')) {
+    return withBase(rawSrc, baseURL)
   }
-  return props.src
+  return rawSrc
 })
 
 // Default height is 240px for consistent card sizing
