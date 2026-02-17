@@ -21,6 +21,25 @@ function escapeXml(text: string): string {
 }
 
 /**
+ * Find the first image in the AST
+ */
+function findFirstImage(nodes: any[]): string | null {
+  if (!Array.isArray(nodes)) return null
+
+  for (const node of nodes) {
+    if (Array.isArray(node) && node.length >= 1) {
+      const [tag, attrs, ...children] = node
+      if (tag === 'img' && attrs?.src) {
+        return attrs.src
+      }
+      const childImage = findFirstImage(children)
+      if (childImage) return childImage
+    }
+  }
+  return null
+}
+
+/**
  * Convert Nuxt Content v3 body to HTML for RSS content
  *
  * Body structure in Nuxt Content v3:
@@ -29,7 +48,7 @@ function escapeXml(text: string): string {
  *   - Each node: ["tag", {attrs}, ...children] or just "text string"
  * - body.toc: Table of contents
  */
-function astToHtml(node: any): string {
+function astToHtml(node: any, siteUrl: string, baseURL: string): string {
   if (!node) return ''
 
   // Plain string - escape HTML entities
@@ -37,12 +56,12 @@ function astToHtml(node: any): string {
 
   // Nuxt Content v3 body object with value array
   if (node.value && Array.isArray(node.value)) {
-    return compactAstToHtml(node.value)
+    return compactAstToHtml(node.value, siteUrl, baseURL)
   }
 
   // Direct array
   if (Array.isArray(node)) {
-    return compactAstToHtml(node)
+    return compactAstToHtml(node, siteUrl, baseURL)
   }
 
   return ''
@@ -93,7 +112,7 @@ function extractFromCompactAst(nodes: any[]): string {
  * Convert compact AST to HTML
  * Format: ["tag", {attrs}, child1, child2, ...] or just "text"
  */
-function compactAstToHtml(nodes: any[]): string {
+function compactAstToHtml(nodes: any[], siteUrl: string, baseURL: string): string {
   if (!Array.isArray(nodes)) return ''
 
   return nodes.map(node => {
@@ -102,7 +121,12 @@ function compactAstToHtml(nodes: any[]): string {
 
     // Compact AST node: ["tag", {attrs}, ...children]
     if (Array.isArray(node) && node.length >= 1) {
-      const [tag, attrs, ...children] = node
+      let [tag, attrs, ...children] = node
+      
+      // Make image URLs absolute
+      if (tag === 'img' && attrs?.src && attrs.src.startsWith('/')) {
+        attrs = { ...attrs, src: `${siteUrl}${baseURL === '/' ? '' : baseURL.replace(/\/$/, '')}${attrs.src}` }
+      }
 
       // Handle void elements (no closing tag)
       const voidElements = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
@@ -118,7 +142,7 @@ function compactAstToHtml(nodes: any[]): string {
       const openTag = attrStr ? `<${tag}${attrStr}>` : `<${tag}>`
 
       // Recursively process children
-      const childHtml = compactAstToHtml(children)
+      const childHtml = compactAstToHtml(children, siteUrl, baseURL)
 
       // Build closing tag
       const closeTag = `</${tag}>`
@@ -252,14 +276,19 @@ export default defineEventHandler(async (event) => {
     let htmlContent = ''
     if (post.body) {
       plainTextContent = extractFromCompactAst(post.body.value || post.body).trim()
-      htmlContent = astToHtml(post.body).trim()
+      htmlContent = astToHtml(post.body, siteUrl, baseURL).trim()
     }
 
     // Description: use explicit description or fall back to plain text excerpt
     const description = post.description || post.meta?.description || plainTextContent.slice(0, 300) + (plainTextContent.length > 300 ? '...' : '')
 
     // Full HTML content for content:encoded
-    const fullContent = htmlContent || `<p>${escapeXml(description)}</p>`
+    let fullContent = htmlContent || `<p>${escapeXml(description)}</p>`
+    
+    // Prepend cover image if found and not already in HTML content (to ensure aggregators find it)
+    if (coverImage && !fullContent.includes(coverImage)) {
+      fullContent = `<p><img src="${escapeXml(coverImage)}" style="max-width: 100%; height: auto;" /></p>` + fullContent
+    }
 
     // Build item with content:encoded for full content
     return `    <item>
@@ -269,6 +298,7 @@ export default defineEventHandler(async (event) => {
       <pubDate>${pubDate}</pubDate>
       <description><![CDATA[${description}]]></description>
       <content:encoded><![CDATA[${fullContent}]]></content:encoded>
+      ${coverImage ? `<enclosure url="${escapeXml(coverImage)}" length="0" type="image/${coverImage.split('.').pop()?.split('?')[0] || 'jpeg'}" />` : ''}
     </item>`
   }).join('\n')
 
