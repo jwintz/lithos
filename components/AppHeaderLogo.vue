@@ -120,10 +120,9 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="header-logo cursor-pointer"
+    class="header-logo"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
-    @click="navigateTo('/')"
   >
     <ClientOnly>
       <img

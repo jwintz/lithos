@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Navigation links in sidebar now respect `baseURL` in subpath deployments (e.g., GitHub Pages) by using a normalized path helper in `filter-navigation.ts`
-- Header logo now uses a `div` with `navigateTo('/')` to avoid nested links and hydration mismatches, while correctly resolving the home path with `baseURL`
+- Header logo now uses `UHeader`'s default `ULink` wrapping to avoid nested links and hydration mismatches, while correctly resolving the home path with `baseURL`
+- Redirect logic in `bin/lithos.mjs` now robustly joins `baseURL` with `/home` for projects without a landing page
 - Cold reload (refresh) on subpath deployments now correctly queries content by more robustly stripping the `baseURL` from the route path in `[...slug].vue`
 - Redundant and potentially broken `favicon.ico` link removed from `app.vue` in favor of the correctly configured SVG favicon in `nuxt.config.ts`
 - Direct URL access (cold load) on static hosts returning 404 due to trailing slash mismatch between SSR and client hydration; `route.path` is now normalized before use in `useAsyncData` keys and `queryCollection` queries

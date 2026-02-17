@@ -313,9 +313,11 @@ try {
         const content = readFileSync(indexHtml, 'utf-8')
         // Check if it's a redirect page (contains meta refresh to /home)
         if (content.includes('url=/home') && !content.includes(`url=${baseURL}`)) {
-          const fixedContent = content.replace('url=/home', `url=${baseURL}home`)
+          // Robust baseURL join: ensure only one slash between baseURL and home
+          const cleanBase = baseURL.endsWith('/') ? baseURL.slice(0, -1) : baseURL
+          const fixedContent = content.replace('url=/home', `url=${cleanBase}/home`)
           writeFileSync(indexHtml, fixedContent)
-          console.log(`[Lithos] Fixed redirect to include baseURL: ${baseURL}home`)
+          console.log(`[Lithos] Fixed redirect to include baseURL: ${cleanBase}/home`)
         }
       }
     }
