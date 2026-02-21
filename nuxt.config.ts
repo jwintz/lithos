@@ -203,6 +203,10 @@ export default defineNuxtConfig({
             options: { strict: false, throwOnError: false }
           }
         }
+      },
+      highlight: {
+        // Extend the default language set with Emacs Lisp support
+        langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift']
       }
     }
   },
@@ -327,6 +331,10 @@ export default defineNuxtConfig({
       map: {
         'noir-image': 'NoirImage'
       }
+    },
+    // Extend client/SSR highlighter with the same langs as content.build.highlight
+    highlight: {
+      langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift']
     }
   },
 
