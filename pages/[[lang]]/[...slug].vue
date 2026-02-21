@@ -264,44 +264,24 @@ async function toggleSourceView() {
 
     let content: string | null = null
 
-    // Try multiple fetch strategies
-    const fetchStrategies = [
-      // Strategy 1: Dynamic API (dev server)
-      async () => {
-        const result = await $fetch<{ content: string }>('/api/raw', {
-          params: { path: filePath }
-        })
-        return result.content
-      },
-      // Strategy 2: Static /_raw/ path with original filename
-      async () => {
-        const result = await $fetch(`/_raw/${filePath}`, { 
-          parseResponse: (txt: string) => txt 
-        })
-        return typeof result === 'string' ? result : null
-      },
-      // Strategy 3: Try with index.md for directory-like paths
-      async () => {
-        if (filePath.endsWith('.md') && !filePath.endsWith('index.md')) {
+    // Fetch via server API (reads from disk, bypasses Vite transform pipeline)
+    try {
+      const result = await $fetch<{ content: string }>('/api/raw', {
+        params: { path: filePath }
+      })
+      content = result.content
+    } catch (e) {
+      // Try with index.md for directory-like paths
+      if (filePath.endsWith('.md') && !filePath.endsWith('index.md')) {
+        try {
           const dirPath = filePath.replace(/\.md$/, '/index.md')
-          const result = await $fetch(`/_raw/${dirPath}`, {
-            parseResponse: (txt: string) => txt
+          const result = await $fetch<{ content: string }>('/api/raw', {
+            params: { path: dirPath }
           })
-          return typeof result === 'string' ? result : null
+          content = result.content
+        } catch {
+          // File not found
         }
-        return null
-      }
-    ]
-
-    for (const strategy of fetchStrategies) {
-      try {
-        const result = await strategy()
-        if (result) {
-          content = result
-          break
-        }
-      } catch (e) {
-        // Continue to next strategy
       }
     }
 

@@ -11,7 +11,7 @@ definePageMeta({
   layout: 'landing',
 })
 
-const { data: page } = await useAsyncData('landing', () => 
+const { data: page } = await useAsyncData('landing', () =>
   queryCollection('docs' as keyof Collections).path('/').first()
 )
 
