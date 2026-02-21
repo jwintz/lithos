@@ -11,7 +11,6 @@ import * as nuxtUiLocales from '@nuxt/ui/locale'
 import { sortNavigationItems } from '~/composables/useNavSorting'
 
 const { seo } = useAppConfig()
-const site = useSiteConfig()
 const { locale, locales, isEnabled, switchLocalePath } = useDocusI18n()
 
 const nuxtUiLocale = computed(() => nuxtUiLocales[locale.value as keyof typeof nuxtUiLocales] || nuxtUiLocales.en)
@@ -33,7 +32,7 @@ useSeoMeta({
   titleTemplate: seo.titleTemplate,
   title: seo.title,
   description: seo.description,
-  ogSiteName: site.name,
+  ogSiteName: useRuntimeConfig().public.siteName as string,
   twitterCard: 'summary_large_image',
 })
 

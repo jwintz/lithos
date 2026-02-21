@@ -76,15 +76,17 @@ const createDocsSchema = () => z.object({
   concluded: z.union([z.string(), z.date()]).optional(),
   outcome: z.enum(['adopted', 'rejected', 'deferred']).optional(),
 
-  // File metadata (injected by obsidian-transform)
+  // File metadata (injected by obsidian-transform / obsidian-bases)
   mtime: z.string().optional(),
   order: z.number().optional(),
+  isBase: z.boolean().optional(),
   navigation: z.union([
     z.boolean(),
     z.object({
       title: z.string().optional(),
       icon: z.string().optional(),
       order: z.number().optional(),
+      isBase: z.boolean().optional(),
     })
   ]).optional(),
 

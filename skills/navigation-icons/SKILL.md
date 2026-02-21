@@ -1,6 +1,6 @@
 ---
 name: navigation-icons
-description: Add icons to navigation items using frontmatter properties or folder configuration
+description: Add icons to navigation items using frontmatter or .navigation.md folder files.
 ---
 
 # Navigation Icons
@@ -28,17 +28,70 @@ icon: i-lucide-rocket
 ---
 ```
 
-## Folder Icons (.navigation.yml)
+## Folder Icons (.navigation.md)
 
-Configure folder icons using `.navigation.yml` files placed inside the folder:
+Configure folder icons using `.navigation.md` files placed inside the folder. These are frontmatter-only files (no body content):
 
 ```yaml
-# 1.guide/.navigation.yml
-title: Guide
-icon: i-lucide-book-open
+# features/.navigation.md
+---
+title: Features
+navigation:
+  title: Features
+  icon: i-lucide-star
+  order: 1
+---
 ```
 
-**Important**: Do NOT create `index.md` files inside folders. Use `.navigation.yml` for folder metadata.
+This sets the folder's display title, icon, and position in the sidebar.
+
+### Examples from Reference Vaults
+
+**Hyalo vault** — each section folder has a `.navigation.md`:
+
+```yaml
+# init/.navigation.md
+---
+title: Init System
+navigation:
+  title: Init System
+  icon: i-lucide-layers
+  order: 2
+---
+
+# lisp/.navigation.md
+---
+title: Lisp Side
+navigation:
+  title: Lisp Side
+  icon: i-lucide-parentheses
+  order: 3
+---
+
+# swift/.navigation.md
+---
+title: Swift Side
+navigation:
+  title: Swift Side
+  icon: i-lucide-layers-3
+  order: 4
+---
+```
+
+## With Numeric Prefix Folders
+
+When using numeric filename prefixes, the prefix handles ordering. Use `.navigation.md` for icons and display titles:
+
+```yaml
+# 1.guide/.navigation.md
+---
+title: Guide
+navigation:
+  icon: i-lucide-book-open
+---
+```
+
+No `order` needed here — the numeric prefix `1.` determines position.
 
 ## Available Icon Sets
 
@@ -49,21 +102,6 @@ Lithos supports these icon prefixes (via `@nuxt/icon`):
 | `i-lucide-*` | [Lucide Icons](https://lucide.dev/icons) | `i-lucide-home`, `i-lucide-settings` |
 | `i-heroicons-*` | [Heroicons](https://heroicons.com/) | `i-heroicons-home`, `i-heroicons-cog` |
 | `i-simple-icons-*` | [Simple Icons](https://simpleicons.org/) | `i-simple-icons-github` |
-
-## Example Structure
-
-```
-vault/
-├── index.md                    ← Landing page (only index allowed)
-├── 1.guide/
-│   ├── .navigation.yml         ← Folder icon: i-lucide-book-open
-│   ├── 1.getting-started.md    ← Page icon in frontmatter
-│   └── 2.configuration.md
-├── 2.features/
-│   ├── .navigation.yml         ← Folder icon
-│   └── 1.obsidian-syntax.md    ← Page with navigation.icon
-└── About.md                    ← Root page with icon
-```
 
 ## Custom Icons
 

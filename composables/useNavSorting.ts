@@ -2,73 +2,36 @@
  * Shared Navigation Sorting Composable
  *
  * Provides consistent sorting logic for navigation items across:
- * - SSR payload sorting (filter-navigation.ts)
- * - Client-side DOM sorting (filter-navigation.ts)
+ * - SSR payload sorting (app.vue transform)
+ * - Client-side DOM enhancements (filter-navigation.ts)
  * - Surround navigation (slug.vue)
  *
  * Sorting priority:
  * 1. Explicit `order` or `navigation.order` from frontmatter
  * 2. Numeric prefix in stem's last segment (e.g., "1.guide" -> 1)
- * 3. Sub-item specific ordering (subOrder map)
- * 4. Blog post date sorting (DESC for blog items)
- * 5. Manual order by title/slug (manualOrder map)
- * 6. Alphabetical fallback
+ * 3. Date-based sorting for date-prefixed files (DESC - newest first)
+ * 4. Alphabetical fallback
  */
-
-// Custom folder/page ordering map (titles or slugs)
-export const manualOrder: Record<string, number> = {
-  'home': 1,
-  'about': 2,
-  'bases': 3,
-  'blog': 4,
-  'project': 5,
-  'projects': 5,
-  'research': 6,
-  'colophon': 7
-}
-
-// Sub-items order (full path match)
-export const subOrder: Record<string, number> = {
-  '/bases/posts': 3.1,
-  '/bases/projects': 3.2,
-  '/bases/research': 3.3,
-  '/blog/2026-01-20-odin-monitor': 4.1,
-  '/projects/odin': 5.1,
-  '/projects/hyalo': 5.2,
-  '/projects/emacs': 5.3,
-  '/projects/emacs-swift': 5.4,
-  '/research/emacs-swift-research': 6.1,
-  '/research/emacs-swift-implementation': 6.2
-}
-
-// Icons for folders
-export const folderIcons: Record<string, string> = {
-  'bases': 'i-lucide:database',
-  'posts': 'i-lucide-file-text',
-  'blog': 'i-lucide-scroll',
-  'project': 'i-lucide-box',
-  'projects': 'i-lucide-box',
-  'research': 'i-lucide-microscope'
-}
 
 /**
- * Extract blog post date from path for sorting
- * Returns negative timestamp for DESC sort (newer first)
- * Returns null if no date found
+ * Extract date from a date-prefixed filename for sorting.
+ * Matches YYYY-MM-DD pattern in the last path segment.
+ * Returns negative timestamp for DESC sort (newer first).
+ * Returns null if no date found.
  */
-export function extractBlogDate(path: string): number | null {
-  const dateMatch = path.match(/\/blog\/(\d{4}-\d{2}-\d{2})/)
+export function extractDateFromPath(path: string): number | null {
+  const lastSegment = path.split('/').filter(Boolean).pop() || ''
+  const dateMatch = lastSegment.match(/^(\d{4}-\d{2}-\d{2})/)
   if (dateMatch) {
     const timestamp = new Date(dateMatch[1]).getTime()
-    // Return negative for DESC sort
     return -timestamp
   }
   return null
 }
 
 /**
- * Get sort order for a navigation item
- * Used by both SSR sorting and surround navigation
+ * Get sort order for a navigation item.
+ * Used by both SSR sorting and surround navigation.
  */
 export function getSortOrder(item: any): number {
   // Priority 1: Explicit order or navigation.order from frontmatter
@@ -87,43 +50,28 @@ export function getSortOrder(item: any): number {
     return Number(prefixMatch[1])
   }
 
-  // Priority 3: Sub-item specific ordering
+  // Priority 3: Date-based sorting (returns DESC for date-prefixed files)
   const itemPath = (item.path || '').toLowerCase()
-  if (itemPath && subOrder[itemPath]) {
-    return subOrder[itemPath]
-  }
-
-  // Priority 4: Blog date sorting (returns a value that ensures proper ordering)
-  const blogDate = extractBlogDate(itemPath)
-  if (blogDate !== null) {
-    // Use a large base number + negative timestamp to ensure blog posts
+  const dateOrder = extractDateFromPath(itemPath)
+  if (dateOrder !== null) {
+    // Use a large base number + negative timestamp to ensure date-prefixed files
     // sort after their parent folder but among themselves by date DESC
-    return 1000 + blogDate / 1e12 // Normalize to reasonable range
+    return 1000 + dateOrder / 1e12
   }
 
-  // Priority 5: Manual order by title/slug (vault-specific fallback)
-  const title = (item.title || '').toLowerCase()
-  const slug = (item.path || '').split('/').filter(Boolean).pop()?.toLowerCase()
-
-  if (manualOrder[title] !== undefined) {
-    return manualOrder[title]
-  }
-  if (slug && manualOrder[slug] !== undefined) {
-    return manualOrder[slug]
-  }
-
+  // Priority 4: Alphabetical fallback
   return 999
 }
 
 /**
  * Sort and decorate navigation items recursively.
  * Returns a new sorted array without mutating the original.
- * Assigns icons, base-item classes, and folder renames so that
+ * Assigns icons and base-item classes from data so that
  * server-rendered HTML matches client expectations (SSR parity).
  */
 export function sortNavigationItems<T extends { children?: T[]; title?: string }>(
   items: T[],
-  parentTitle?: string
+  _parentTitle?: string
 ): T[] {
   return [...items]
     .sort((a, b) => {
@@ -136,31 +84,13 @@ export function sortNavigationItems<T extends { children?: T[]; title?: string }
     .map(item => {
       const decorated = { ...item } as any
 
-      // Decorate this item (icons, classes, renames)
-      const itemPath = (decorated.path || '').toLowerCase()
-      const slug = itemPath.split('/').filter(Boolean).pop() || ''
-      const itemTitle = (decorated.title || '').toLowerCase()
-
-      const isBaseByPath = itemPath.startsWith('/bases/') && itemPath !== '/bases'
-      const isBaseByParent = parentTitle?.toLowerCase() === 'bases'
-      const isBaseItem = isBaseByPath || isBaseByParent
-      const isBasesFolder = itemPath === '/bases' || itemTitle === 'bases'
-
-      if (slug === 'project' && decorated.title !== 'Projects') {
-        decorated.title = 'Projects'
-      }
-
-      if (isBasesFolder) {
-        decorated.icon = 'i-lucide:database'
-      } else if (isBaseItem) {
-        decorated.icon = 'i-lucide:database'
-        decorated.isBase = true
+      // Data-driven base item detection (set by obsidian-bases module)
+      if (decorated.isBase) {
+        decorated.icon = decorated.icon || 'i-lucide:database'
         decorated.class = ((decorated.class || '') + ' lithos-base-item').trim()
-      } else if (slug && folderIcons[slug]) {
-        decorated.icon = folderIcons[slug]
       }
 
-      // Recurse into children, passing current title as parent
+      // Recurse into children
       if (decorated.children && decorated.children.length > 0) {
         decorated.children = sortNavigationItems(decorated.children, decorated.title)
       }
@@ -174,11 +104,8 @@ export function sortNavigationItems<T extends { children?: T[]; title?: string }
  */
 export function useNavSorting() {
   return {
-    manualOrder,
-    subOrder,
-    folderIcons,
     getSortOrder,
     sortNavigationItems,
-    extractBlogDate
+    extractDateFromPath
   }
 }

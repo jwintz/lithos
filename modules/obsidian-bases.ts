@@ -143,6 +143,10 @@ function generateBaseMarkdown(config: BaseConfig, filename: string): string {
   // 2. The ObsidianBase component has its own collapsible header
   return `---
 title: ${title}${orderStr}
+isBase: true
+navigation:
+  icon: i-lucide:database
+  isBase: true
 ---
 
 ::obsidian-base

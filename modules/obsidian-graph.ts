@@ -22,6 +22,7 @@ export interface GraphNode {
   path: string
   tags: string[]
   folder: string
+  isTag?: boolean
 }
 
 export interface GraphEdge {
@@ -188,6 +189,10 @@ export default defineNuxtModule({
       // Small delay to ensure content module has processed all files
       await new Promise(resolve => setTimeout(resolve, 1000))
 
+      // Clear edges and tag nodes from previous builds (document nodes persist from afterParse hook)
+      graph.edges = []
+      graph.nodes = graph.nodes.filter(n => !n.isTag)
+
       console.log(`[obsidian-graph] Building graph... (${graph.nodes.length} nodes registered, ${extractedLinks.size} files with links)`)
 
       // Use links extracted by obsidian-transform module
@@ -233,6 +238,31 @@ export default defineNuxtModule({
             }
           }
         }
+      }
+
+      // Create tag nodes and document-to-tag edges
+      const tagSet = new Set<string>()
+      for (const node of graph.nodes) {
+        if (node.tags && Array.isArray(node.tags) && node.tags.length > 0) {
+          for (const tag of node.tags) {
+            const tagStr = typeof tag === 'string' ? tag : String(tag)
+            if (!tagStr) continue
+            tagSet.add(tagStr)
+            const tagPath = `tags/${tagStr.toLowerCase()}`
+            graph.edges.push({ source: node.path, target: tagPath })
+          }
+        }
+      }
+      for (const tag of tagSet) {
+        const tagPath = `tags/${tag.toLowerCase()}`
+        graph.nodes.push({
+          id: tagPath,
+          title: `#${tag}`,
+          path: tagPath,
+          tags: [],
+          folder: 'tags',
+          isTag: true
+        })
       }
 
       // Filter edges to only include those where both source and target nodes exist

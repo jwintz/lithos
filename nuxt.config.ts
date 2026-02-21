@@ -155,10 +155,10 @@ export default defineNuxtConfig({
       ...lithosIgnorePatterns.map(p => p.includes('*') ? p : `**/${p}`)
     ],
 
-    // Navigation configuration
-    // navigation: {
-    //   fields: ['title', 'navigation', 'order', '_order', 'icon']
-    // },
+    // Navigation configuration - expose fields needed by sortNavigationItems()
+    navigation: {
+      fields: ['order', 'stem', 'isBase', 'icon']
+    },
 
     // Dynamic Source Configuration
     sources: {
@@ -311,9 +311,9 @@ export default defineNuxtConfig({
       publicDir: resolve(customOutputPath)
     } : undefined,
     prerender: {
-      routes: hasLandingPage 
-        ? ['/', '/home', '/about', '/colophon', '/graph', '/rss.xml'] 
-        : ['/home', '/about', '/colophon', '/graph', '/rss.xml'],
+      routes: hasLandingPage
+        ? ['/', '/graph', '/rss.xml']
+        : ['/home', '/graph', '/rss.xml'],
       crawlLinks: true,
       failOnError: false,
       concurrency: 1,
