@@ -263,24 +263,46 @@ async function toggleSourceView() {
     }
 
     let content: string | null = null
+    const isDev = import.meta.dev
 
-    // Fetch via server API (reads from disk, bypasses Vite transform pipeline)
-    try {
-      const result = await $fetch<{ content: string }>('/api/raw', {
-        params: { path: filePath }
-      })
-      content = result.content
-    } catch (e) {
-      // Try with index.md for directory-like paths
+    if (isDev) {
+      // Dev mode: use server API (reads from disk, bypasses Vite transform pipeline)
+      try {
+        const result = await $fetch<{ content: string }>('/api/raw', {
+          params: { path: filePath }
+        })
+        content = result.content
+      } catch {
+        // Try with index.md for directory-like paths
+        if (filePath.endsWith('.md') && !filePath.endsWith('index.md')) {
+          try {
+            const dirPath = filePath.replace(/\.md$/, '/index.md')
+            const result = await $fetch<{ content: string }>('/api/raw', {
+              params: { path: dirPath }
+            })
+            content = result.content
+          } catch {
+            // File not found
+          }
+        }
+      }
+    } else {
+      // Production/SSG: fetch from static /_raw/ files (copied during build)
+      const paths = [filePath]
       if (filePath.endsWith('.md') && !filePath.endsWith('index.md')) {
+        paths.push(filePath.replace(/\.md$/, '/index.md'))
+      }
+      for (const p of paths) {
         try {
-          const dirPath = filePath.replace(/\.md$/, '/index.md')
-          const result = await $fetch<{ content: string }>('/api/raw', {
-            params: { path: dirPath }
+          const result = await $fetch(`/_raw/${p}`, {
+            parseResponse: (txt: string) => txt
           })
-          content = result.content
+          if (typeof result === 'string') {
+            content = result
+            break
+          }
         } catch {
-          // File not found
+          // Continue to next path
         }
       }
     }
