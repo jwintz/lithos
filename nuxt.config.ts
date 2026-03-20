@@ -2,7 +2,7 @@
 import { defineNuxtConfig } from 'nuxt/config'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, readdirSync } from 'fs'
 import { resolve, join } from 'path'
 
 // CLI support: custom output directory via NITRO_OUTPUT_DIR env var
@@ -101,6 +101,20 @@ if (siteName === 'Lithos') {
       } catch (e) {
         // Ignore
       }
+    }
+  }
+}
+
+// Load TextMate grammars from the vault's grammars/ directory
+const vaultGrammarsDir = absoluteVaultPath ? join(absoluteVaultPath, 'grammars') : null
+const vaultGrammars: object[] = []
+if (vaultGrammarsDir && existsSync(vaultGrammarsDir)) {
+  for (const file of readdirSync(vaultGrammarsDir).filter(f => f.endsWith('.tmLanguage.json'))) {
+    try {
+      vaultGrammars.push(JSON.parse(readFileSync(join(vaultGrammarsDir, file), 'utf8')))
+      console.log(`[Lithos] Loaded vault grammar: ${file}`)
+    } catch (e) {
+      console.warn(`[Lithos] Failed to parse grammar ${file}:`, e)
     }
   }
 }
@@ -205,8 +219,8 @@ export default defineNuxtConfig({
         }
       },
       highlight: {
-        // Extend the default language set with Emacs Lisp and Java support
-        langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift', 'java', 'xml', 'groovy', 'kotlin']
+        // Extend the default language set; vault grammars are loaded from vault/grammars/*.tmLanguage.json
+        langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift', 'java', 'xml', 'groovy', 'kotlin', ...vaultGrammars]
       }
     }
   },
@@ -229,7 +243,7 @@ export default defineNuxtConfig({
         ? [{ path: join(absoluteVaultPath, 'components'), pathPrefix: false }] 
         : []),
       ...(absoluteVaultPath && existsSync(join(absoluteVaultPath, 'components', 'content'))
-        ? [{ path: join(absoluteVaultPath, 'components', 'content'), pathPrefix: false, global: true }]
+        ? [{ path: join(absoluteVaultPath, 'components', 'content'), pathPrefix: false, global: false }]
         : [])
     ]
   },
@@ -270,6 +284,15 @@ export default defineNuxtConfig({
 
   // Vite configuration for performance and OOM prevention
   vite: {
+    // Allow Vite dev server to serve files from the vault directory (outside project root)
+    server: {
+      fs: {
+        allow: [
+          process.cwd(),
+          ...(absoluteVaultPath ? [absoluteVaultPath] : [])
+        ]
+      }
+    },
     build: {
       minify: 'esbuild',
       cssCodeSplit: true,
@@ -334,7 +357,7 @@ export default defineNuxtConfig({
     },
     // Extend client/SSR highlighter with the same langs as content.build.highlight
     highlight: {
-      langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift', 'java', 'xml', 'groovy', 'kotlin']
+      langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift', 'java', 'xml', 'groovy', 'kotlin', ...vaultGrammars]
     }
   },
 
@@ -369,6 +392,13 @@ export default defineNuxtConfig({
         console.log(`[Lithos] Mounted vault for raw access at /_raw (dev mode)`)
       } else if (isSSG) {
         console.log(`[Lithos] SSG mode - vault files will be copied by CLI with filters`)
+      }
+      // Mount vault public/ directory at root if it exists
+      const vaultPublicDir = absoluteVaultPath ? join(absoluteVaultPath, 'public') : null
+      if (vaultPublicDir && existsSync(vaultPublicDir)) {
+        config.publicAssets = config.publicAssets || []
+        config.publicAssets.push({ dir: vaultPublicDir, maxAge: 3600 })
+        console.log(`[Lithos] Mounted vault public/ at root`)
       }
     }
   }
