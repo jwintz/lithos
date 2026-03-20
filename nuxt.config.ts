@@ -205,8 +205,8 @@ export default defineNuxtConfig({
         }
       },
       highlight: {
-        // Extend the default language set with Emacs Lisp support
-        langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift']
+        // Extend the default language set with Emacs Lisp and Java support
+        langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift', 'java', 'xml', 'groovy', 'kotlin']
       }
     }
   },
@@ -334,7 +334,7 @@ export default defineNuxtConfig({
     },
     // Extend client/SSR highlighter with the same langs as content.build.highlight
     highlight: {
-      langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift']
+      langs: ['elisp', 'emacs-lisp', 'common-lisp', 'scheme', 'swift', 'java', 'xml', 'groovy', 'kotlin']
     }
   },
 

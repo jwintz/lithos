@@ -216,11 +216,12 @@ export default defineEventHandler(async (event) => {
           if (status && status !== 'published') return false
         }
 
-        // Check content types
+        // Require an explicit type — navigation and index docs have none
         const docType = doc.type || doc.meta?.type
+        if (!docType) return false
 
         // Check if doc type matches any configured content type
-        if (docType && contentTypes.includes(docType)) return true
+        if (contentTypes.includes(docType)) return true
 
         // Check isDailyNote flag
         if (contentTypes.includes('daily-note')) {
@@ -284,7 +285,10 @@ export default defineEventHandler(async (event) => {
 
     // Full HTML content for content:encoded
     let fullContent = htmlContent || `<p>${escapeXml(description)}</p>`
-    
+
+    // Find cover image from body AST
+    const coverImage = post.body ? findFirstImage(post.body.value || post.body) : null
+
     // Prepend cover image if found and not already in HTML content (to ensure aggregators find it)
     if (coverImage && !fullContent.includes(coverImage)) {
       fullContent = `<p><img src="${escapeXml(coverImage)}" style="max-width: 100%; height: auto;" /></p>` + fullContent
