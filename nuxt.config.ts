@@ -243,7 +243,7 @@ export default defineNuxtConfig({
         ? [{ path: join(absoluteVaultPath, 'components'), pathPrefix: false }] 
         : []),
       ...(absoluteVaultPath && existsSync(join(absoluteVaultPath, 'components', 'content'))
-        ? [{ path: join(absoluteVaultPath, 'components', 'content'), pathPrefix: false, global: false }]
+        ? [{ path: join(absoluteVaultPath, 'components', 'content'), pathPrefix: false, global: true }]
         : [])
     ]
   },
